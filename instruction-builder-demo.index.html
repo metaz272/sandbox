@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Instruction Builder — Demo</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Georgia, serif; background: #0f0f0f; color: #f0ece4; min-height: 100vh; display: flex; flex-direction: column; }
+::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
+@keyframes pulse { 0%,100%{opacity:.3;transform:scale(.8)} 50%{opacity:1;transform:scale(1.2)} }
+@keyframes fadein { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+input:focus, textarea:focus { outline: none; }
+input[type=file] { display: none; }
+
+header { background: #111; border-bottom: 1px solid #1e1e1e; padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; position: sticky; top: 0; z-index: 100; }
+.h-sub { font-size: 9px; letter-spacing: 4px; color: #444; text-transform: uppercase; margin-bottom: 3px; }
+.h-main { font-size: 20px; letter-spacing: -0.5px; }
+.h-main em { color: #c9a96e; font-style: italic; }
+.h-right { display: flex; gap: 8px; align-items: center; }
+.param-count { font-size: 11px; color: #444; }
+.param-count span { color: #c9a96e; }
+.btn-sm { padding: 5px 12px; background: transparent; border: 1px solid #252525; border-radius: 2px; color: #555; cursor: pointer; font-size: 11px; font-family: Georgia, serif; transition: all 0.15s; }
+.btn-sm:hover { border-color: #444; color: #888; }
+.btn-sm.active { background: #c9a96e18; border-color: #c9a96e; color: #c9a96e; }
+.demo-badge { padding: 3px 10px; background: #c9a96e18; border: 1px solid #c9a96e44; border-radius: 2px; font-size: 10px; color: #c9a96e; letter-spacing: 1px; }
+
+.layout { display: grid; grid-template-columns: 140px 1fr 260px; flex: 1; overflow: hidden; height: calc(100vh - 57px); }
+.nav { background: #111; border-right: 1px solid #1e1e1e; overflow-y: auto; }
+.nav-item { padding: 11px 14px; cursor: pointer; border-left: 3px solid transparent; display: flex; justify-content: space-between; align-items: center; transition: all 0.15s; }
+.nav-item:hover { background: #161616; }
+.nav-item.active { background: #1a1a1a; }
+.nav-item .nav-label { font-size: 11px; color: #555; }
+.nav-item.active .nav-label { color: #f0ece4; }
+.nav-badge { font-size: 10px; padding: 1px 5px; border-radius: 8px; }
+
+.form { padding: 22px 24px; overflow-y: auto; }
+.section-header-label { font-size: 9px; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 18px; display: flex; align-items: center; gap: 8px; }
+.dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+.group { margin-bottom: 20px; }
+.group-label { font-size: 9px; letter-spacing: 2px; color: #3a3a3a; text-transform: uppercase; margin-bottom: 10px; }
+.chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.chip { padding: 5px 12px; background: #1a1a1a; border: 1px solid #252525; border-radius: 2px; cursor: pointer; font-size: 12px; color: #555; transition: all 0.15s; user-select: none; display: inline-flex; align-items: center; gap: 6px; font-family: Georgia, serif; }
+.chip .box { width: 7px; height: 7px; border: 1px solid #333; border-radius: 1px; background: transparent; display: inline-block; flex-shrink: 0; transition: all 0.15s; }
+
+.right { background: #111; border-left: 1px solid #1e1e1e; display: flex; flex-direction: column; overflow: hidden; }
+.params-preview { flex: 1; padding: 16px; overflow-y: auto; border-bottom: 1px solid #1e1e1e; }
+.preview-title { font-size: 9px; letter-spacing: 3px; color: #444; text-transform: uppercase; margin-bottom: 14px; }
+.preview-empty { font-size: 11px; color: #252525; font-style: italic; }
+.preview-line { font-size: 11px; color: #666; line-height: 1.8; border-bottom: 1px solid #1a1a1a; padding-bottom: 4px; margin-bottom: 4px; }
+.preview-goal { margin-top: 10px; font-size: 11px; color: #888; font-style: italic; line-height: 1.6; }
+.execute-area { padding: 14px; }
+.abs-label { font-size: 9px; letter-spacing: 2px; color: #333; text-transform: uppercase; margin-bottom: 8px; }
+.btn-execute { width: 100%; padding: 11px; background: #1a1a1a; color: #333; border: none; border-radius: 2px; cursor: not-allowed; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; font-family: Georgia, serif; transition: all 0.2s; }
+.btn-execute.ready { background: #c9a96e; color: #0f0f0f; cursor: pointer; }
+
+.goal-desc { font-size: 12px; color: #555; margin-bottom: 12px; line-height: 1.6; }
+.goal-textarea { width: 100%; padding: 12px 14px; background: #161616; border: 1px solid #252525; border-radius: 2px; color: #f0ece4; font-size: 13px; font-family: Georgia, serif; resize: vertical; transition: border-color 0.2s; }
+.goal-textarea:focus { border-color: #c9a96e; }
+.goal-textarea::placeholder { color: #2a2a2a; }
+.file-btn { margin-top: 12px; padding: 8px 14px; background: #161616; border: 1px dashed #2a2a2a; border-radius: 2px; cursor: pointer; font-size: 12px; color: #444; display: inline-block; font-family: Georgia, serif; }
+.file-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+.file-tag { padding: 2px 8px; background: #4a9eff15; border: 1px solid #4a9eff44; font-size: 11px; color: #4a9eff; border-radius: 2px; }
+
+.chat-view { display: none; flex-direction: column; flex: 1; height: calc(100vh - 57px); overflow: hidden; }
+.chat-view.visible { display: flex; }
+.build-view.hidden { display: none; }
+
+.params-bar { background: #111; border-bottom: 1px solid #1e1e1e; padding: 8px 20px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; flex-shrink: 0; }
+.params-bar-label { font-size: 9px; letter-spacing: 2px; color: #333; text-transform: uppercase; margin-right: 4px; }
+.param-tag { padding: 2px 8px; background: #1a1a1a; border: 1px solid #252525; font-size: 10px; color: #555; border-radius: 2px; }
+
+.messages { flex: 1; overflow-y: auto; padding: 24px 32px; display: flex; flex-direction: column; gap: 16px; }
+.msg { display: flex; animation: fadein 0.3s ease; }
+.msg.user { justify-content: flex-end; }
+.bubble { max-width: 78%; padding: 12px 16px; border-radius: 2px; }
+.bubble.user { background: #1e1a14; border: 1px solid #3a3020; }
+.bubble.assistant { background: #161616; border: 1px solid #252525; }
+.bubble-label { font-size: 9px; letter-spacing: 2px; color: #c9a96e; text-transform: uppercase; margin-bottom: 6px; }
+.bubble-text { font-size: 13px; color: #ccc; line-height: 1.7; white-space: pre-wrap; }
+
+.chat-input-area { padding: 14px 24px; border-top: 1px solid #1e1e1e; background: #111; display: flex; gap: 10px; flex-shrink: 0; }
+.chat-input { flex: 1; padding: 10px 14px; background: #161616; border: 1px solid #252525; border-radius: 2px; color: #f0ece4; font-size: 13px; font-family: Georgia, serif; transition: border-color 0.2s; }
+.chat-input:focus { border-color: #c9a96e; }
+.chat-input::placeholder { color: #2a2a2a; }
+.btn-send { padding: 10px 20px; background: #1a1a1a; color: #333; border: none; border-radius: 2px; cursor: not-allowed; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; font-family: Georgia, serif; transition: all 0.2s; white-space: nowrap; }
+.btn-send.ready { background: #c9a96e; color: #0f0f0f; cursor: pointer; }
+.loading-bubble { display: flex; gap: 5px; padding: 12px 16px; background: #161616; border: 1px solid #252525; border-radius: 2px; width: fit-content; animation: fadein 0.3s ease; }
+.ldot { width: 6px; height: 6px; background: #c9a96e; border-radius: 50%; animation: pulse 1.2s ease-in-out infinite; }
+.ldot:nth-child(2){animation-delay:.2s} .ldot:nth-child(3){animation-delay:.4s}
+.empty-chat { text-align: center; color: #252525; font-size: 13px; margin-top: 80px; font-style: italic; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="h-sub">Instruction Builder</div>
+    <div class="h-main">What do you <em>need?</em></div>
+  </div>
+  <div class="h-right">
+    <div class="param-count" id="paramCount" style="display:none"><span id="paramNum">0</span> set</div>
+    <span class="demo-badge">Demo</span>
+    <button class="btn-sm" id="viewToggle" onclick="toggleView()">Chat →</button>
+    <button class="btn-sm" onclick="resetAll()">Reset</button>
+  </div>
+</header>
+
+<div class="layout build-view" id="buildView">
+  <div class="nav" id="navPanel"></div>
+  <div class="form" id="formPanel"></div>
+  <div class="right">
+    <div class="params-preview">
+      <div class="preview-title">Parameters</div>
+      <div class="preview-empty" id="previewEmpty">Nothing selected yet...</div>
+      <div id="previewContent"></div>
+    </div>
+    <div class="execute-area">
+      <div class="abs-label">Absolute — cannot be overridden</div>
+      <button class="btn-execute" id="execBtn" onclick="execute()">Execute →</button>
+    </div>
+  </div>
+</div>
+
+<div class="chat-view" id="chatView">
+  <div class="params-bar" id="paramsBar" style="display:none"></div>
+  <div class="messages" id="messages">
+    <div class="empty-chat" id="emptyChat">Select parameters and hit Execute to begin...</div>
+  </div>
+  <div class="chat-input-area">
+    <input class="chat-input" id="chatInput" placeholder="Follow up within the same parameters..." onkeydown="if(event.key==='Enter')sendMessage()" oninput="updateSendBtn()">
+    <button class="btn-send" id="sendBtn" onclick="sendMessage()">Send</button>
+  </div>
+</div>
+
+<script>
+const SCHEMA = {
+  Input: {
+    color: "#4a9eff",
+    groups: {
+      "Provided File": { options: ["PDF","Word (docx)","Excel (xlsx)","CSV","TXT","Image"], multi: true },
+      "Web Search": { options: ["Free Search","Targeted URLs","Scholarly Articles","News","Documentation"], multi: true },
+      "Social Media": { options: ["LinkedIn","Twitter/X","Reddit"], multi: true },
+      "Direct Input": { options: ["Free Text","Conversation History"], multi: true }
+    }
+  },
+  Task: {
+    color: "#7ec87e",
+    groups: {
+      "Action": { options: ["Summarise","Analyse","Compare","Generate","Translate","Extract","Research","Recommend","Rewrite","Code","Classify","Evaluate"], multi: true }
+    }
+  },
+  Output: {
+    color: "#e07e7e",
+    groups: {
+      "Documents": { options: ["PDF","Word (docx)","Excel (xlsx)","PowerPoint (pptx)","Markdown","TXT"], multi: true },
+      "Web & Visual": { options: ["HTML Page","React App","SVG","Mermaid Diagram"], multi: true },
+      "Data": { options: ["CSV","JSON","Table"], multi: true },
+      "Conversational": { options: ["Chat Response","Summary","Bullet Points"], multi: true }
+    }
+  },
+  Constraints: {
+    color: "#c97eb8",
+    groups: {
+      "Tone": { options: ["Formal","Conversational","Technical","Neutral","Persuasive"], multi: false },
+      "Audience": { options: ["Executive","Technical","General","Specialist"], multi: false },
+      "Length": { options: ["Short","Medium","Long"], multi: false },
+      "Language": { options: ["English","French","German","Spanish","Polish","Italian","Other"], multi: false }
+    }
+  },
+  Citation: {
+    color: "#7eb8c9",
+    groups: {
+      "Style": { options: ["Not Required","APA","MLA","Chicago","Inline"], multi: false }
+    }
+  }
+};
+
+// Simulated responses keyed by task + output combinations
+function generateResponse(selLines, goal, messages) {
+  const all = selLines.join(' ').toLowerCase() + ' ' + goal.toLowerCase();
+  const isFollowUp = messages.length > 2;
+  const lastUserMsg = messages[messages.length - 1]?.content?.toLowerCase() || '';
+
+  // Follow-up responses
+  if (isFollowUp) {
+    if (lastUserMsg.includes('more') || lastUserMsg.includes('expand') || lastUserMsg.includes('detail'))
+      return `Expanding within your selected parameters:\n\nThe constraints you set — ${selLines.filter(l=>l.startsWith('Tone')||l.startsWith('Length')||l.startsWith('Audience')).join(', ')||'as specified'} — are being maintained throughout. Here is a more detailed treatment of the previous output:\n\nThe core finding breaks into three components. First, the structural dimension: the input you provided maps cleanly onto the output format you selected. Second, the semantic layer: the task instruction aligns with the content type. Third, the constraint envelope: tone, audience, and length parameters are all compatible — no conflicts detected.\n\nWould you like me to adjust any specific section?`;
+    if (lastUserMsg.includes('shorter') || lastUserMsg.includes('concise') || lastUserMsg.includes('brief'))
+      return `Condensed version, within your parameters:\n\nParameters confirmed. Task executed. Output delivered in selected format. All constraints honoured.\n\nNo parameter violations detected.`;
+    if (lastUserMsg.includes('translate') || lastUserMsg.includes('french') || lastUserMsg.includes('spanish') || lastUserMsg.includes('german'))
+      return `Translation noted — however your Language constraint is set to ${selLines.find(l=>l.startsWith('Language'))?.split(': ')[1]||'English'}. To change the output language, return to Build mode and update the Language parameter. Parameters are absolute and cannot be overridden mid-session.`;
+    return `Continuing within your locked parameters:\n\nYour follow-up has been processed. The output format (${selLines.find(l=>l.startsWith('Documents')||l.startsWith('Web')||l.startsWith('Data')||l.startsWith('Conversational'))?.split(': ')[1]||'as selected'}), tone (${selLines.find(l=>l.startsWith('Tone'))?.split(': ')[1]||'as selected'}), and audience (${selLines.find(l=>l.startsWith('Audience'))?.split(': ')[1]||'as selected'}) remain unchanged as these are absolute parameters.\n\nThe response has been adjusted based on your follow-up instruction while staying within the defined envelope. What else would you like to refine?`;
+  }
+
+  // Initial execution responses based on selections
+  if (all.includes('summarise') || all.includes('summary')) {
+    if (all.includes('executive')) return `EXECUTIVE SUMMARY\n\nParameters confirmed and locked:\n— Task: Summarise\n— Audience: Executive\n— Tone: ${selLines.find(l=>l.startsWith('Tone'))?.split(': ')[1]||'Formal'}\n— Output: ${selLines.find(l=>l.includes('Summary')||l.includes('PDF')||l.includes('Word'))?.split(': ')[1]||'Summary'}\n\nThe source material has been distilled into the following executive briefing:\n\nCore finding: The input contains three primary themes of strategic relevance. First, a structural opportunity in the way information is currently organised. Second, a process gap that creates retrieval friction at scale. Third, a governance consideration that affects how outputs are validated across teams.\n\nRecommended action: Address the structural layer first. The process and governance issues are downstream consequences.\n\nAll constraints honoured. No parameter violations.`;
+    if (all.includes('bullet')) return `BULLET POINT SUMMARY\n\nParameters locked — generating structured output:\n\n• Primary finding: Input material maps to three distinct content categories\n• Key insight: Current organisation creates search friction that compounds at scale\n• Dependency identified: Governance framework required before process automation\n• Risk flag: Without structured metadata, retrieval precision degrades by approximately 60%\n• Recommended next step: Define taxonomy before deploying AI-assisted tagging\n\nTone: ${selLines.find(l=>l.startsWith('Tone'))?.split(': ')[1]||'Neutral'} | Audience: ${selLines.find(l=>l.startsWith('Audience'))?.split(': ')[1]||'General'} | All parameters honoured.`;
+    return `SUMMARY\n\nExecuting within locked parameters.\n\nThe source material has been processed and condensed. The central argument resolves into a single claim: structured inputs produce more reliable outputs than unstructured ones, regardless of the AI model applied.\n\nSupporting evidence falls into two categories — empirical (retrieval precision metrics) and structural (taxonomy design principles). Both point toward the same conclusion.\n\nLength: ${selLines.find(l=>l.startsWith('Length'))?.split(': ')[1]||'Medium'} | Tone: ${selLines.find(l=>l.startsWith('Tone'))?.split(': ')[1]||'Neutral'}\nAll parameters honoured.`;
+  }
+
+  if (all.includes('analyse') || all.includes('analysis')) {
+    return `ANALYSIS\n\nParameters confirmed and locked. Executing analytical task.\n\n1. STRUCTURAL ANALYSIS\nThe input material exhibits three distinct layers: surface content, semantic relationships, and implicit assumptions. Each layer responds differently to the selected task parameters.\n\n2. PATTERN IDENTIFICATION\nTwo recurring patterns emerge: a tendency toward broad categorisation where narrow classification would improve precision, and a governance gap between content creation and content retrieval.\n\n3. IMPLICATION MAPPING\nThe patterns above have downstream consequences for search, compliance, and cross-team asset sharing. The severity scales with library size.\n\n4. RECOMMENDATION\nApply a structured taxonomy before scaling. The cost of retrofitting metadata to an unstructured library grows non-linearly.\n\nTone: ${selLines.find(l=>l.startsWith('Tone'))?.split(': ')[1]||'Technical'} | Audience: ${selLines.find(l=>l.startsWith('Audience'))?.split(': ')[1]||'Specialist'}\nAll parameters honoured.`;
+  }
+
+  if (all.includes('research')) {
+    return `RESEARCH OUTPUT\n\nParameters locked. Executing research task with selected sources.\n\nFINDINGS\n\nThe current literature identifies three convergent trends relevant to your query:\n\n1. Semantic search is outperforming keyword search across all major enterprise content categories, with precision gains of 40–70% reported in controlled studies.\n\n2. Multilingual metadata standards are emerging as a critical gap in DAM governance frameworks, particularly in regulated industries.\n\n3. Ontology-grounded AI tagging (e.g. FIBO for financial services) is showing strong early results in reducing retrieval noise in large asset libraries.\n\nSOURCES\nWebSearch results synthesised per selected citation style: ${selLines.find(l=>l.startsWith('Style'))?.split(': ')[1]||'Not Required'}.\n\nAll parameters honoured.`;
+  }
+
+  if (all.includes('generate')) {
+    if (all.includes('react') || all.includes('html')) return `CODE GENERATION\n\nParameters locked. Generating ${all.includes('react')?'React component':'HTML page'} output.\n\n// Generated within locked parameters\n// Tone: ${selLines.find(l=>l.startsWith('Tone'))?.split(': ')[1]||'Technical'}\n// Audience: ${selLines.find(l=>l.startsWith('Audience'))?.split(': ')[1]||'Technical'}\n\nimport { useState } from "react";\n\nexport default function GeneratedComponent() {\n  const [active, setActive] = useState(false);\n  \n  return (\n    <div style={{ padding: "24px", background: "#0f0f0f", color: "#f0ece4" }}>\n      <h1>Generated Output</h1>\n      <p>This component was generated within absolute parameters.</p>\n      <button onClick={() => setActive(!active)}>\n        {active ? "Active" : "Inactive"}\n      </button>\n    </div>\n  );\n}\n\nAll parameters honoured. Full implementation available on request.`;
+    return `GENERATED OUTPUT\n\nExecuting generation task within locked parameters.\n\nThe following has been generated in accordance with your selections:\n— Format: ${selLines.find(l=>l.startsWith('Documents')||l.startsWith('Conversational'))?.split(': ')[1]||'as selected'}\n— Tone: ${selLines.find(l=>l.startsWith('Tone'))?.split(': ')[1]||'Neutral'}\n— Audience: ${selLines.find(l=>l.startsWith('Audience'))?.split(': ')[1]||'General'}\n— Length: ${selLines.find(l=>l.startsWith('Length'))?.split(': ')[1]||'Medium'}\n\n[Generated content would appear here, structured according to the output format and constraints you selected. The system enforces these as absolute parameters — tone, format, and audience settings cannot be overridden by the content of the request.]\n\nAll parameters honoured.`;
+  }
+
+  if (all.includes('translate')) {
+    const lang = selLines.find(l=>l.startsWith('Language'))?.split(': ')[1]||'the selected language';
+    return `TRANSLATION\n\nParameters locked. Translating to ${lang}.\n\n${lang === 'French' ? 'Le contenu source a été traduit conformément aux paramètres sélectionnés. Le ton, le registre et le niveau de formalité ont été maintenus selon vos instructions. Aucune violation de paramètre détectée.' : lang === 'German' ? 'Der Quellinhalt wurde gemäß den ausgewählten Parametern übersetzt. Ton, Register und Formalitätsniveau wurden entsprechend Ihren Anweisungen beibehalten.' : lang === 'Spanish' ? 'El contenido fuente ha sido traducido según los parámetros seleccionados. El tono, el registro y el nivel de formalidad se han mantenido según sus instrucciones.' : lang === 'Polish' ? 'Treść źródłowa została przetłumaczona zgodnie z wybranymi parametrami. Ton, rejestr i poziom formalności zostały zachowane zgodnie z instrukcjami.' : '[Translation in ' + lang + ' — content rendered according to selected tone and formality level]'}\n\nAll parameters honoured.`;
+  }
+
+  if (all.includes('compare')) {
+    return `COMPARATIVE ANALYSIS\n\nParameters locked. Executing comparison task.\n\nCOMPARISON MATRIX\n\n┌─────────────────┬──────────────┬──────────────┐\n│ Dimension       │ Option A     │ Option B     │\n├─────────────────┼──────────────┼──────────────┤\n│ Precision       │ High         │ Medium       │\n│ Scalability     │ Medium       │ High         │\n│ Governance fit  │ Strong       │ Moderate     │\n│ Implementation  │ Complex      │ Simple       │\n│ Long-term value │ High         │ Medium       │\n└─────────────────┴──────────────┴──────────────┘\n\nVERDICT\nOption A outperforms on precision and governance. Option B is preferable where speed of implementation is the primary constraint.\n\nTone: ${selLines.find(l=>l.startsWith('Tone'))?.split(': ')[1]||'Neutral'} | All parameters honoured.`;
+  }
+
+  if (all.includes('extract')) {
+    return `EXTRACTION COMPLETE\n\nParameters locked. Key entities and concepts extracted from input.\n\nENTITIES IDENTIFIED\n— Primary concepts: [3 extracted]\n— Named entities: [7 extracted]\n— Relationships: [4 mapped]\n— Dates/figures: [2 extracted]\n\nSAMPLE EXTRACTION\n• Concept 1: Semantic precision in retrieval systems\n• Concept 2: Governance tier framework for multilingual content\n• Concept 3: Cross-language tag compression methodology\n• Entity: Financial industry ontology standards\n• Relationship: Taxonomy → search precision (positive correlation)\n\nOutput format: ${selLines.find(l=>l.startsWith('Data')||l.startsWith('Conversational'))?.split(': ')[1]||'as selected'}\nAll parameters honoured.`;
+  }
+
+  if (all.includes('recommend')) {
+    return `RECOMMENDATIONS\n\nParameters locked. Generating recommendations for ${selLines.find(l=>l.startsWith('Audience'))?.split(': ')[1]||'your'} audience.\n\nPRIORITY RECOMMENDATIONS\n\n1. IMMEDIATE (0–30 days)\nDefine your core taxonomy before deploying any AI-assisted tagging. The quality of structured input determines the quality of AI output — this step cannot be skipped.\n\n2. SHORT TERM (1–3 months)\nImplement a governance tier system to separate global, market-specific, and restricted assets. This prevents compliance issues from scaling with your library.\n\n3. MEDIUM TERM (3–6 months)\nBuild feedback loops into your retrieval system. Every search interaction is training data. Capture it.\n\n4. LONG TERM (6–12 months)\nConsider fine-tuning embeddings on your specific vocabulary once you have 500+ labelled examples.\n\nTone: ${selLines.find(l=>l.startsWith('Tone'))?.split(': ')[1]||'Formal'} | All parameters honoured.`;
+  }
+
+  // Default fallback
+  return `EXECUTION COMPLETE\n\nParameters confirmed and locked:\n${selLines.map(l=>'— '+l).join('\n')}\n${goal ? '— Goal: ' + goal : ''}\n\nThe task has been executed strictly within the parameters above. Every constraint — tone, format, audience, length, language, and citation style — has been applied without exception.\n\nThis interface enforces absolute parameter compliance. Your selections cannot be overridden by the content of any request during this session.\n\nTo modify parameters, return to Build mode and adjust your selections before executing again.\n\nAll parameters honoured. No violations detected.`;
+}
+
+const state = {};
+const files = [];
+let goal = '';
+let activeSection = 'Input';
+let messages = [];
+let loading = false;
+let currentView = 'build';
+
+Object.entries(SCHEMA).forEach(([sec, { groups }]) => {
+  Object.keys(groups).forEach(grp => { state[`${sec}.${grp}`] = []; });
+});
+
+function buildNav() {
+  const nav = document.getElementById('navPanel');
+  const sections = [...Object.keys(SCHEMA), 'Goal'];
+  nav.innerHTML = sections.map(name => {
+    const color = name === 'Goal' ? '#c9a96e' : SCHEMA[name]?.color || '#c9a96e';
+    const count = name === 'Goal' ? (goal ? 1 : 0) : Object.entries(state).filter(([k]) => k.startsWith(name+'.')).flatMap(([,v]) => v).length;
+    return `<div class="nav-item ${activeSection===name?'active':''}" style="border-left-color:${activeSection===name?color:'transparent'}" onclick="setSection('${name}')">
+      <span class="nav-label">${name}</span>
+      ${count > 0 ? `<span class="nav-badge" style="color:${color};background:${color}22">${count}</span>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function buildForm() {
+  const form = document.getElementById('formPanel');
+  if (activeSection === 'Goal') {
+    form.innerHTML = `
+      <div class="section-header-label" style="color:#c9a96e"><span class="dot" style="background:#c9a96e"></span>Goal</div>
+      <div class="goal-desc">Describe your task in plain language. This accompanies your parameter selections.</div>
+      <textarea class="goal-textarea" rows="5" placeholder="e.g. Summarise the attached PDF into a one-page executive briefing in formal English..." oninput="updateGoal(this.value)">${goal}</textarea>
+      <div class="group-label" style="margin-top:18px;margin-bottom:10px">Attach Files</div>
+      <div class="file-btn" onclick="document.getElementById('fileInput').click()">+ Attach files</div>
+      <input type="file" id="fileInput" multiple onchange="handleFiles(this)">
+      <div class="file-tags" id="fileTags">${files.map(f=>`<span class="file-tag">${f}</span>`).join('')}</div>
+    `;
+  } else {
+    const { color, groups } = SCHEMA[activeSection];
+    form.innerHTML = `
+      <div class="section-header-label" style="color:${color}"><span class="dot" style="background:${color}"></span>${activeSection}</div>
+      ${Object.entries(groups).map(([grp, { options, multi }]) => `
+        <div class="group">
+          <div class="group-label">${grp}${!multi?' <span style="color:#2a2a2a">— single select</span>':''}</div>
+          <div class="chips">
+            ${options.map(opt => {
+              const sel = (state[`${activeSection}.${grp}`]||[]).includes(opt);
+              return `<div class="chip" style="${sel?`background:${color}18;border-color:${color};color:${color}`:''}" onclick="toggleChip('${activeSection}','${grp}','${opt.replace(/['"]/g,'')}',${multi})">
+                <span class="box" style="${sel?`background:${color};border-color:${color}`:''}"></span>${opt}
+              </div>`;
+            }).join('')}
+          </div>
+        </div>`).join('')}
+    `;
+  }
+}
+
+function setSection(name) { activeSection = name; buildNav(); buildForm(); }
+
+function toggleChip(sec, grp, opt, multi) {
+  const key = `${sec}.${grp}`;
+  if (!state[key]) state[key] = [];
+  if (!multi) {
+    state[key] = state[key][0] === opt ? [] : [opt];
+  } else {
+    const idx = state[key].indexOf(opt);
+    if (idx > -1) state[key].splice(idx, 1); else state[key].push(opt);
+  }
+  buildForm(); updatePreview();
+}
+
+function updateGoal(val) { goal = val; updatePreview(); buildNav(); }
+
+function handleFiles(input) {
+  Array.from(input.files).forEach(f => files.push(f.name));
+  const el = document.getElementById('fileTags');
+  if (el) el.innerHTML = files.map(f=>`<span class="file-tag">${f}</span>`).join('');
+  updatePreview();
+}
+
+function getSelectionLines() {
+  const lines = [];
+  Object.entries(state).forEach(([key, vals]) => {
+    if (vals.length > 0) {
+      const [,grp] = key.split('.');
+      lines.push(`${grp}: ${vals.join(', ')}`);
+    }
+  });
+  if (files.length > 0) lines.push(`Files: ${files.join(', ')}`);
+  return lines;
+}
+
+function totalParams() { return Object.values(state).flat().length + files.length; }
+
+function updatePreview() {
+  const total = totalParams();
+  const countEl = document.getElementById('paramCount');
+  document.getElementById('paramNum').textContent = total + (goal ? 1 : 0);
+  countEl.style.display = (total > 0 || goal) ? 'block' : 'none';
+  document.getElementById('execBtn').classList.toggle('ready', total > 0 || !!goal);
+  const lines = getSelectionLines();
+  document.getElementById('previewEmpty').style.display = lines.length === 0 && !goal ? 'block' : 'none';
+  document.getElementById('previewContent').innerHTML = lines.map(l=>`<div class="preview-line">${l}</div>`).join('') + (goal ? `<div class="preview-goal">"${goal}"</div>` : '');
+}
+
+function toggleView() {
+  currentView = currentView === 'build' ? 'chat' : 'build';
+  document.getElementById('buildView').classList.toggle('hidden', currentView === 'chat');
+  document.getElementById('chatView').classList.toggle('visible', currentView === 'chat');
+  document.getElementById('viewToggle').textContent = currentView === 'build' ? 'Chat →' : '← Build';
+  document.getElementById('viewToggle').classList.toggle('active', currentView === 'chat');
+  updateParamsBar();
+}
+
+function updateParamsBar() {
+  const bar = document.getElementById('paramsBar');
+  const lines = getSelectionLines();
+  if (lines.length === 0) { bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  bar.innerHTML = `<span class="params-bar-label">Active</span>` + lines.map(l=>`<span class="param-tag">${l}</span>`).join('');
+}
+
+function execute() {
+  if (totalParams() === 0 && !goal) return;
+  toggleView();
+  const msg = goal || `Execute with these parameters:\n${getSelectionLines().join('\n')}`;
+  setTimeout(() => sendMessageText(msg), 300);
+}
+
+function renderMessages() {
+  const container = document.getElementById('messages');
+  document.getElementById('emptyChat').style.display = messages.length === 0 && !loading ? 'block' : 'none';
+  container.querySelectorAll('.msg,.loading-bubble').forEach(e => e.remove());
+  messages.forEach(msg => {
+    const div = document.createElement('div');
+    div.className = `msg ${msg.role}`;
+    div.innerHTML = `<div class="bubble ${msg.role}">${msg.role==='assistant'?'<div class="bubble-label">Claude</div>':''}<div class="bubble-text">${msg.content}</div></div>`;
+    container.appendChild(div);
+  });
+  if (loading) {
+    const ld = document.createElement('div');
+    ld.className = 'loading-bubble';
+    ld.innerHTML = '<div class="ldot"></div><div class="ldot"></div><div class="ldot"></div>';
+    container.appendChild(ld);
+  }
+  container.scrollTop = container.scrollHeight;
+}
+
+async function sendMessageText(text) {
+  if (!text.trim() || loading) return;
+  messages.push({ role: 'user', content: text });
+  loading = true;
+  renderMessages();
+  document.getElementById('chatInput').value = '';
+  updateSendBtn();
+
+  // Simulate thinking delay
+  await new Promise(r => setTimeout(r, 1200 + Math.random() * 800));
+
+  const response = generateResponse(getSelectionLines(), goal, messages);
+  messages.push({ role: 'assistant', content: response });
+  loading = false;
+  renderMessages();
+  updateSendBtn();
+}
+
+function sendMessage() {
+  const val = document.getElementById('chatInput').value.trim();
+  if (val) sendMessageText(val);
+}
+
+function updateSendBtn() {
+  const val = document.getElementById('chatInput').value.trim();
+  document.getElementById('sendBtn').classList.toggle('ready', !!val && !loading);
+}
+
+function resetAll() {
+  Object.keys(state).forEach(k => state[k] = []);
+  files.length = 0; goal = ''; messages = []; loading = false;
+  activeSection = 'Input'; currentView = 'build';
+  document.getElementById('buildView').classList.remove('hidden');
+  document.getElementById('chatView').classList.remove('visible');
+  document.getElementById('viewToggle').textContent = 'Chat →';
+  document.getElementById('viewToggle').classList.remove('active');
+  buildNav(); buildForm(); updatePreview(); renderMessages();
+}
+
+buildNav(); buildForm(); updatePreview();
+</script>
+</body>
+</html>
