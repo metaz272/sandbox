@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Instruction Builder — Demo</title>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Source+Sans+3:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/*
+  Palette inspired by autism-friendly design principles:
+  - Muted grey-greens and soft blues (GA Architects recommendations)
+  - Warm light grey background (like linen or warm paper)
+  - No bright, saturated, or primary colors
+  - Low contrast between adjacent surfaces
+  - Calm mint/sage accents only
+*/
+:root {
+  --bg:        #f2f1ee;       /* warm light grey — like this chat window */
+  --surface:   #ebe9e5;       /* slightly darker surface */
+  --panel:     #e4e2dd;       /* nav/sidebar */
+  --border:    #d4d1cb;       /* soft dividers */
+  --border-2:  #c8c4bc;       /* slightly stronger border */
+  --text:      #1a1a18;       /* near-black body text */
+  --text-2:    #4a4a45;       /* secondary text */
+  --text-3:    #8a8a84;       /* muted labels */
+  --text-4:    #b0ada6;       /* very muted */
+  --accent:    #5e8a7a;       /* muted sage-teal — main accent */
+  --accent-lt: #e8f0ed;       /* very light tint of accent */
+  --accent-2:  #6e8fa8;       /* soft slate blue — secondary */
+  --accent-2lt:#e8eef3;       /* light tint of slate blue */
+  --mint:      #7aaa96;       /* mint for input section */
+  --slate:     #7892a8;       /* slate for output */
+  --lavender:  #8a86a8;       /* soft lavender for constraints */
+  --warm:      #a08878;       /* warm taupe for citation */
+  --gold:      #8a7a5a;       /* muted warm gold for goal/accents */
+  --font-body: 'Source Sans 3', system-ui, sans-serif;
+  --font-serif: 'Lora', Georgia, serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-body); background: var(--bg); color: var(--text); font-size: 14px; min-height: 100vh; display: flex; flex-direction: column; line-height: 1.5; }
+::-webkit-scrollbar { width: 5px; } ::-webkit-scrollbar-track { background: var(--bg); } ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+input:focus, textarea:focus { outline: none; }
+input[type=file] { display: none; }
+
+@keyframes pulse { 0%,100%{opacity:.3;transform:scale(.8)} 50%{opacity:1;transform:scale(1.2)} }
+@keyframes fadein { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:translateY(0)} }
+@keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+
+/* ─── HEADER ─── */
+header {
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.h-eyebrow { font-size: 10px; letter-spacing: 3px; color: var(--text-3); text-transform: uppercase; margin-bottom: 2px; font-family: var(--font-body); font-weight: 300; }
+.h-title { font-family: var(--font-serif); font-size: 20px; color: var(--text); font-weight: 500; letter-spacing: -0.3px; }
+.h-title em { color: var(--accent); font-style: italic; }
+.h-right { display: flex; gap: 8px; align-items: center; }
+.param-pill { font-size: 12px; color: var(--accent); background: var(--accent-lt); padding: 3px 10px; border-radius: 20px; border: 1px solid var(--accent); display: none; }
+.demo-badge { font-size: 10px; letter-spacing: 2px; color: var(--text-3); text-transform: uppercase; padding: 3px 10px; border: 1px solid var(--border); border-radius: 20px; }
+.btn-hdr { padding: 6px 14px; background: var(--bg); border: 1px solid var(--border-2); border-radius: 20px; color: var(--text-2); cursor: pointer; font-size: 12px; font-family: var(--font-body); font-weight: 500; transition: all 0.2s; }
+.btn-hdr:hover { background: var(--surface); border-color: var(--accent); color: var(--accent); }
+.btn-hdr.active { background: var(--accent-lt); border-color: var(--accent); color: var(--accent); }
+
+/* ─── LAYOUT ─── */
+.layout { display: grid; grid-template-columns: 152px 1fr 272px; flex: 1; overflow: hidden; height: calc(100vh - 57px); }
+
+/* ─── NAV ─── */
+.nav { background: var(--panel); border-right: 1px solid var(--border); overflow-y: auto; padding: 8px 0; }
+.nav-section-label { font-size: 9px; letter-spacing: 3px; color: var(--text-4); text-transform: uppercase; padding: 14px 16px 4px; font-weight: 600; }
+.nav-item { padding: 9px 16px; cursor: pointer; border-left: 3px solid transparent; display: flex; justify-content: space-between; align-items: center; transition: all 0.15s; font-size: 13px; color: var(--text-3); }
+.nav-item:hover { background: var(--surface); color: var(--text-2); }
+.nav-item.active { background: var(--bg); border-left-color: var(--accent); color: var(--text); }
+.nav-badge { font-size: 10px; padding: 1px 6px; border-radius: 10px; font-weight: 600; }
+
+/* ─── FORM ─── */
+.form { padding: 24px 28px; overflow-y: auto; background: var(--bg); }
+.sec-eyebrow { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; }
+.sec-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.sec-title { font-family: var(--font-serif); font-size: 17px; color: var(--text); font-weight: 500; }
+.group { margin-bottom: 22px; }
+.group-label { font-size: 10px; letter-spacing: 2px; color: var(--text-4); text-transform: uppercase; margin-bottom: 10px; font-weight: 600; }
+.group-label small { font-size: 9px; color: var(--border-2); letter-spacing: 1px; margin-left: 6px; font-weight: 400; }
+.chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.chip {
+  padding: 6px 13px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-2);
+  transition: all 0.15s;
+  user-select: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-body);
+  font-weight: 400;
+}
+.chip:hover { border-color: var(--border-2); color: var(--text); background: var(--panel); }
+.chip .dot { width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid var(--border-2); background: transparent; flex-shrink: 0; transition: all 0.15s; }
+
+/* ─── RIGHT PANEL ─── */
+.right { background: var(--panel); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+.params-preview { flex: 1; padding: 18px; overflow-y: auto; border-bottom: 1px solid var(--border); }
+.preview-eyebrow { font-size: 10px; letter-spacing: 3px; color: var(--text-4); text-transform: uppercase; margin-bottom: 14px; font-weight: 600; }
+.preview-empty { font-size: 13px; color: var(--text-4); font-style: italic; font-family: var(--font-serif); }
+.preview-group { margin-bottom: 12px; }
+.preview-group-label { font-size: 9px; letter-spacing: 2px; color: var(--text-4); text-transform: uppercase; margin-bottom: 5px; font-weight: 600; }
+.preview-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.preview-chip { padding: 2px 9px; border-radius: 12px; font-size: 12px; }
+.preview-goal { margin-top: 12px; font-size: 13px; color: var(--text-2); font-style: italic; font-family: var(--font-serif); line-height: 1.6; padding: 10px 12px; background: var(--bg); border-radius: 6px; border: 1px solid var(--border); }
+.exec-area { padding: 16px 18px; }
+.abs-note { font-size: 10px; color: var(--text-4); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; line-height: 1.5; }
+.btn-exec { width: 100%; padding: 11px; background: var(--border); color: var(--text-4); border: none; border-radius: 6px; cursor: not-allowed; font-size: 13px; font-family: var(--font-body); font-weight: 600; transition: all 0.25s; letter-spacing: 0.5px; }
+.btn-exec.ready { background: var(--accent); color: #fff; cursor: pointer; box-shadow: 0 2px 8px rgba(94,138,122,0.25); }
+.btn-exec.ready:hover { background: #4e7a6a; }
+
+/* ─── GOAL SECTION ─── */
+.hint-card { background: var(--accent-lt); border: 1px solid var(--accent); border-radius: 8px; padding: 14px 16px; margin-bottom: 22px; }
+.hint-title { font-size: 10px; letter-spacing: 2px; color: var(--accent); text-transform: uppercase; margin-bottom: 10px; font-weight: 600; }
+.hint-step { font-size: 12px; color: var(--text-2); line-height: 1.9; display: flex; gap: 10px; }
+.hint-step .num { color: var(--accent); font-weight: 600; flex-shrink: 0; width: 14px; }
+.goal-desc { font-size: 13px; color: var(--text-3); margin-bottom: 12px; line-height: 1.7; }
+.goal-textarea { width: 100%; padding: 12px 14px; background: var(--surface); border: 1.5px solid var(--border); border-radius: 6px; color: var(--text); font-size: 14px; font-family: var(--font-body); resize: vertical; transition: border-color 0.2s; line-height: 1.6; }
+.goal-textarea:focus { border-color: var(--accent); background: var(--bg); }
+.goal-textarea::placeholder { color: var(--text-4); }
+
+/* ─── CHAT VIEW ─── */
+.chat-view { display: none; flex-direction: column; flex: 1; height: calc(100vh - 57px); overflow: hidden; background: var(--bg); }
+.chat-view.visible { display: flex; }
+.build-view.hidden { display: none; }
+
+.params-bar { background: var(--panel); border-bottom: 1px solid var(--border); padding: 8px 22px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; flex-shrink: 0; }
+.params-bar-label { font-size: 10px; letter-spacing: 2px; color: var(--text-4); text-transform: uppercase; margin-right: 4px; font-weight: 600; }
+.param-tag { padding: 2px 9px; background: var(--surface); border: 1px solid var(--border); font-size: 11px; color: var(--text-2); border-radius: 12px; }
+
+.messages { flex: 1; overflow-y: auto; padding: 28px 36px; display: flex; flex-direction: column; gap: 18px; }
+.msg { display: flex; animation: fadein 0.3s ease; }
+.msg.user { justify-content: flex-end; }
+.bubble { max-width: 76%; padding: 14px 18px; border-radius: 10px; }
+.bubble.user { background: var(--accent-lt); border: 1px solid var(--accent); }
+.bubble.user .bubble-text { color: var(--text); font-size: 14px; }
+.bubble.assistant { background: #fff; border: 1px solid var(--border); box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+.bubble-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.bubble-from { font-size: 10px; letter-spacing: 2px; color: var(--accent); text-transform: uppercase; font-weight: 600; }
+.source-tags { display: flex; gap: 4px; }
+.src-tag { padding: 2px 7px; background: var(--accent-2lt); border: 1px solid var(--accent-2); font-size: 10px; color: var(--accent-2); border-radius: 10px; letter-spacing: 0.5px; font-weight: 500; }
+.bubble-text { font-size: 14px; color: var(--text); line-height: 1.75; }
+.bullet-row { display: flex; gap: 10px; margin-bottom: 9px; align-items: flex-start; }
+.bullet-mark { color: var(--accent); flex-shrink: 0; margin-top: 3px; font-size: 12px; }
+.bullet-body { font-size: 14px; color: var(--text); line-height: 1.7; }
+.bullet-src { font-size: 11px; color: var(--text-4); margin-left: 5px; }
+.date-footer { font-size: 11px; color: var(--text-4); margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); line-height: 1.7; }
+.param-confirm { display: inline-flex; gap: 5px; flex-wrap: wrap; margin-top: 4px; }
+.pc-tag { padding: 1px 7px; background: var(--accent-lt); border: 1px solid var(--accent); font-size: 10px; color: var(--accent); border-radius: 10px; }
+
+.empty-chat { text-align: center; color: var(--text-4); font-size: 14px; margin-top: 80px; font-style: italic; font-family: var(--font-serif); }
+
+.chat-input-row { padding: 14px 22px; border-top: 1px solid var(--border); background: var(--panel); display: flex; gap: 10px; flex-shrink: 0; }
+.chat-input { flex: 1; padding: 10px 16px; background: var(--bg); border: 1.5px solid var(--border); border-radius: 24px; color: var(--text); font-size: 14px; font-family: var(--font-body); transition: border-color 0.2s; }
+.chat-input:focus { border-color: var(--accent); }
+.chat-input::placeholder { color: var(--text-4); }
+.btn-send { padding: 10px 22px; background: var(--border); color: var(--text-4); border: none; border-radius: 24px; cursor: not-allowed; font-size: 13px; font-weight: 600; font-family: var(--font-body); transition: all 0.2s; white-space: nowrap; }
+.btn-send.ready { background: var(--accent); color: #fff; cursor: pointer; }
+.btn-send.ready:hover { background: #4e7a6a; }
+
+.loading-row { display: flex; gap: 6px; padding: 12px 16px; background: #fff; border: 1px solid var(--border); border-radius: 10px; width: fit-content; align-items: center; animation: fadein 0.3s ease; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+.loading-label { font-size: 11px; color: var(--text-4); letter-spacing: 1px; margin-right: 6px; }
+.ldot { width: 6px; height: 6px; background: var(--accent); border-radius: 50%; animation: pulse 1.2s ease-in-out infinite; }
+.ldot:nth-child(2){animation-delay:.2s} .ldot:nth-child(3){animation-delay:.4s}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="h-eyebrow">Instruction Builder</div>
+    <div class="h-title">What do you <em>need?</em></div>
+  </div>
+  <div class="h-right">
+    <div class="param-pill" id="paramPill"><span id="paramNum">0</span> parameters set</div>
+    <span class="demo-badge">Demo</span>
+    <button class="btn-hdr" id="viewToggle" onclick="toggleView()">Chat →</button>
+    <button class="btn-hdr" onclick="resetAll()">Reset</button>
+  </div>
+</header>
+
+<div class="layout build-view" id="buildView">
+  <div class="nav" id="navPanel"></div>
+  <div class="form" id="formPanel"></div>
+  <div class="right">
+    <div class="params-preview">
+      <div class="preview-eyebrow">Your selection</div>
+      <div class="preview-empty" id="previewEmpty">Nothing selected yet…</div>
+      <div id="previewContent"></div>
+    </div>
+    <div class="exec-area">
+      <div class="abs-note">These parameters are absolute and cannot be overridden</div>
+      <button class="btn-exec" id="execBtn" onclick="execute()">Execute →</button>
+    </div>
+  </div>
+</div>
+
+<div class="chat-view" id="chatView">
+  <div class="params-bar" id="paramsBar" style="display:none"></div>
+  <div class="messages" id="messages">
+    <div class="empty-chat" id="emptyChat">Select parameters and hit Execute to begin…</div>
+  </div>
+  <div class="chat-input-row">
+    <input class="chat-input" id="chatInput" placeholder="Follow up within the same parameters…" onkeydown="if(event.key==='Enter')sendMessage()" oninput="updateSendBtn()">
+    <button class="btn-send" id="sendBtn" onclick="sendMessage()">Send</button>
+  </div>
+</div>
+
+<script>
+const SECTION_COLORS = {
+  Input:       { dot: '#7aaa96', badge: '#7aaa96', badgeBg: '#edf5f1', chip: '#5e8a7a' },
+  Task:        { dot: '#6e8fa8', badge: '#6e8fa8', badgeBg: '#e8eef3', chip: '#5c7d94' },
+  Output:      { dot: '#8a86a8', badge: '#8a86a8', badgeBg: '#eeecf4', chip: '#7872a0' },
+  Constraints: { dot: '#a08878', badge: '#a08878', badgeBg: '#f3eeeb', chip: '#8a7060' },
+  Citation:    { dot: '#8a7a5a', badge: '#8a7a5a', badgeBg: '#f2ede4', chip: '#7a6a4a' },
+  Goal:        { dot: '#5e8a7a', badge: '#5e8a7a', badgeBg: '#e8f0ed', chip: '#5e8a7a' }
+};
+
+const SCHEMA = {
+  Input: {
+    groups: {
+      "Web Search": { options: ["Free Search","Targeted URLs","Scholarly Articles","News","Documentation"], multi: true },
+      "Social Media": { options: ["LinkedIn","Twitter/X","Reddit"], multi: true },
+      "Provided File": { options: ["PDF","Word (docx)","Excel (xlsx)","CSV","TXT","Image"], multi: true },
+      "Direct Input": { options: ["Free Text","Conversation History"], multi: true }
+    }
+  },
+  Task: {
+    groups: {
+      "Action": { options: ["Summarise","Analyse","Compare","Generate","Translate","Extract","Research","Recommend","Rewrite","Code","Classify","Evaluate"], multi: true }
+    }
+  },
+  Output: {
+    groups: {
+      "Documents": { options: ["PDF","Word (docx)","Excel (xlsx)","PowerPoint (pptx)","Markdown","TXT"], multi: true },
+      "Conversational": { options: ["Chat Response","Summary","Bullet Points"], multi: true },
+      "Web & Visual": { options: ["HTML Page","React App","SVG","Mermaid Diagram"], multi: true },
+      "Data": { options: ["CSV","JSON","Table"], multi: true }
+    }
+  },
+  Constraints: {
+    groups: {
+      "Tone": { options: ["Formal","Conversational","Technical","Neutral","Persuasive"], multi: false },
+      "Audience": { options: ["Executive","Technical","General","Specialist"], multi: false },
+      "Length": { options: ["Short","Medium","Long"], multi: false },
+      "Language": { options: ["English","French","German","Spanish","Polish","Italian","Other"], multi: false }
+    }
+  },
+  Citation: {
+    groups: {
+      "Style": { options: ["Not Required","APA","MLA","Chicago","Inline"], multi: false }
+    }
+  }
+};
+
+const DEMO_RESPONSE = {
+  bullets: [
+    { text: "Block (Square/Cash App) cut 4,000 jobs this week — nearly half its workforce. CEO Jack Dorsey cited AI tools as the reason a smaller team can now do more.", source: "News" },
+    { text: "Tech layoffs in 2026 are running at 815 per day. As of March 5, over 52,000 workers have been let go across 148 companies — outpacing 2025's already elevated rate.", source: "News" },
+    { text: "Amazon remains the single largest layoff event of the year: 16,000 corporate jobs cut as part of broader restructuring.", source: "News" },
+    { text: "AI is the dominant stated reason. 44% of US hiring managers expect AI to be a top driver of cuts in 2026 — while simultaneously creating new roles in ML and AI safety.", source: "LinkedIn" },
+    { text: "UPS plans to eliminate 30,000 jobs across 2026, largely through attrition. 24 facilities are closing in H1 alone.", source: "News" },
+    { text: "Entry-level workers are hit hardest. More than a quarter of jobless Americans are now long-term unemployed (27+ weeks).", source: "News" },
+    { text: "JP Morgan forecasts job growth in H1 2026 will be 'uncomfortably slow', with unemployment peaking near 4.5%.", source: "News" }
+  ],
+  date: "March 6, 2026",
+  sources: ["News", "LinkedIn"],
+  params: ["Bullet Points", "Neutral", "General", "Short"]
+};
+
+const FOLLOWUP = {
+  ai: [
+    { text: "AI directly caused an estimated 55,000 US job losses in 2025 — the pace is accelerating in 2026.", source: "News" },
+    { text: "Roles most at risk: content creation, customer support, data entry, basic coding.", source: "News" },
+    { text: "Roles being created: prompt engineering, AI safety, ML operations.", source: "LinkedIn" }
+  ],
+  hiring: [
+    { text: "Healthcare remains the most stable sector — low unemployment, consistent demand growth.", source: "News" },
+    { text: "AI-native candidates have a significant edge. Upskilling in AI tools is the top recruiter advice on LinkedIn this week.", source: "LinkedIn" },
+    { text: "Federal hiring has contracted sharply — 250,000 government jobs cut under current administration policies.", source: "News" }
+  ],
+  default: [
+    { text: "Sectors still actively hiring: AI/ML engineering, cybersecurity, healthcare, and cloud infrastructure.", source: "News" },
+    { text: "Companies cutting in one division are often hiring in another — dual-track restructuring is now common.", source: "LinkedIn" },
+    { text: "Average job search time for displaced tech workers is currently 2–4 months, longer for senior roles.", source: "News" }
+  ]
+};
+
+const state = {};
+let goal = '', activeSection = 'Input', messages = [], loading = false, currentView = 'build', turnCount = 0;
+
+Object.entries(SCHEMA).forEach(([sec, { groups }]) => {
+  Object.keys(groups).forEach(grp => { state[`${sec}.${grp}`] = []; });
+});
+
+function buildNav() {
+  const nav = document.getElementById('navPanel');
+  const allSecs = [...Object.keys(SCHEMA), 'Goal'];
+  let html = '<div class="nav-section-label">Sections</div>';
+  allSecs.forEach(name => {
+    const c = SECTION_COLORS[name];
+    const count = name === 'Goal' ? (goal ? 1 : 0)
+      : Object.entries(state).filter(([k]) => k.startsWith(name+'.')).flatMap(([,v]) => v).length;
+    html += `<div class="nav-item ${activeSection===name?'active':''}" style="border-left-color:${activeSection===name?c.dot:'transparent'}" onclick="setSection('${name}')">
+      <span>${name}</span>
+      ${count > 0 ? `<span class="nav-badge" style="color:${c.badge};background:${c.badgeBg}">${count}</span>` : ''}
+    </div>`;
+  });
+  nav.innerHTML = html;
+}
+
+function buildForm() {
+  const form = document.getElementById('formPanel');
+  if (activeSection === 'Goal') {
+    form.innerHTML = `
+      <div class="hint-card">
+        <div class="hint-title">Try the demo workflow</div>
+        <div class="hint-step"><span class="num">1</span>Input → select News + LinkedIn</div>
+        <div class="hint-step"><span class="num">2</span>Task → select Summarise</div>
+        <div class="hint-step"><span class="num">3</span>Output → select Bullet Points</div>
+        <div class="hint-step"><span class="num">4</span>Constraints → Neutral, General, Short</div>
+        <div class="hint-step"><span class="num">5</span>Type your goal below, then Execute</div>
+      </div>
+      <div class="sec-eyebrow">
+        <span class="sec-dot" style="background:${SECTION_COLORS.Goal.dot}"></span>
+        <span class="sec-title">Goal</span>
+      </div>
+      <div class="goal-desc">Describe your task in plain language. Your parameter selections above are absolute — they cannot be overridden by what you write here.</div>
+      <textarea class="goal-textarea" rows="4" placeholder="e.g. Job news today" oninput="updateGoal(this.value)">${goal}</textarea>
+    `;
+  } else {
+    const { groups } = SCHEMA[activeSection];
+    const c = SECTION_COLORS[activeSection];
+    let html = `<div class="sec-eyebrow"><span class="sec-dot" style="background:${c.dot}"></span><span class="sec-title">${activeSection}</span></div>`;
+    Object.entries(groups).forEach(([grp, { options, multi }]) => {
+      html += `<div class="group">
+        <div class="group-label">${grp}${!multi ? '<small>single select</small>' : ''}</div>
+        <div class="chips">`;
+      options.forEach(opt => {
+        const key = `${activeSection}.${grp}`;
+        const sel = (state[key]||[]).includes(opt);
+        const safeOpt = opt.replace(/['"()\/]/g, '');
+        html += `<div class="chip" style="${sel ? `background:${c.chip}18;border-color:${c.chip};color:${c.chip}` : ''}"
+          onclick="toggleChip('${activeSection}','${grp}','${safeOpt}',${multi})">
+          <span class="dot" style="${sel ? `background:${c.chip};border-color:${c.chip}` : ''}"></span>${opt}
+        </div>`;
+      });
+      html += '</div></div>';
+    });
+    form.innerHTML = html;
+  }
+}
+
+function setSection(name) { activeSection = name; buildNav(); buildForm(); }
+
+function toggleChip(sec, grp, opt, multi) {
+  const origOpt = (SCHEMA[sec]?.groups[grp]?.options||[]).find(o => o.replace(/['"()\/]/g,'') === opt) || opt;
+  const key = `${sec}.${grp}`;
+  if (!state[key]) state[key] = [];
+  if (!multi) {
+    state[key] = state[key][0] === origOpt ? [] : [origOpt];
+  } else {
+    const idx = state[key].indexOf(origOpt);
+    if (idx > -1) state[key].splice(idx, 1); else state[key].push(origOpt);
+  }
+  buildForm(); updatePreview();
+}
+
+function updateGoal(val) { goal = val; updatePreview(); buildNav(); }
+
+function getSelectionLines() {
+  const lines = [];
+  Object.entries(state).forEach(([key, vals]) => {
+    if (vals.length > 0) { const [,grp] = key.split('.'); lines.push({ grp, vals, sec: key.split('.')[0] }); }
+  });
+  return lines;
+}
+
+function totalParams() { return Object.values(state).flat().length; }
+
+function updatePreview() {
+  const total = totalParams();
+  const pill = document.getElementById('paramPill');
+  document.getElementById('paramNum').textContent = total + (goal ? 1 : 0);
+  pill.style.display = (total > 0 || goal) ? 'inline-flex' : 'none';
+  document.getElementById('execBtn').classList.toggle('ready', total > 0 || !!goal);
+
+  const lines = getSelectionLines();
+  document.getElementById('previewEmpty').style.display = lines.length === 0 && !goal ? 'block' : 'none';
+
+  let html = '';
+  // group by section
+  const bySec = {};
+  lines.forEach(l => { if (!bySec[l.sec]) bySec[l.sec] = []; bySec[l.sec].push(l); });
+  Object.entries(bySec).forEach(([sec, items]) => {
+    const c = SECTION_COLORS[sec];
+    html += `<div class="preview-group"><div class="preview-group-label">${sec}</div><div class="preview-chips">`;
+    items.forEach(({ vals }) => vals.forEach(v => {
+      html += `<span class="preview-chip" style="background:${c.badgeBg};border:1px solid ${c.badge}44;color:${c.badge}">${v}</span>`;
+    }));
+    html += '</div></div>';
+  });
+  if (goal) html += `<div class="preview-goal">"${goal}"</div>`;
+  document.getElementById('previewContent').innerHTML = html;
+}
+
+function toggleView() {
+  currentView = currentView === 'build' ? 'chat' : 'build';
+  document.getElementById('buildView').classList.toggle('hidden', currentView === 'chat');
+  document.getElementById('chatView').classList.toggle('visible', currentView === 'chat');
+  document.getElementById('viewToggle').textContent = currentView === 'build' ? 'Chat →' : '← Build';
+  document.getElementById('viewToggle').classList.toggle('active', currentView === 'chat');
+  updateParamsBar();
+}
+
+function updateParamsBar() {
+  const bar = document.getElementById('paramsBar');
+  const lines = getSelectionLines();
+  if (lines.length === 0) { bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  bar.innerHTML = `<span class="params-bar-label">Active</span>` + lines.flatMap(l => l.vals).map(v => `<span class="param-tag">${v}</span>`).join('');
+}
+
+function execute() {
+  if (totalParams() === 0 && !goal) return;
+  toggleView();
+  setTimeout(() => sendMessageText(goal || 'Job news today'), 300);
+}
+
+function renderMessages() {
+  const container = document.getElementById('messages');
+  document.getElementById('emptyChat').style.display = messages.length === 0 && !loading ? 'block' : 'none';
+  container.querySelectorAll('.msg,.loading-row').forEach(e => e.remove());
+
+  messages.forEach(msg => {
+    const div = document.createElement('div');
+    div.className = `msg ${msg.role}`;
+    if (msg.role === 'assistant' && msg.data) {
+      const srcTags = msg.data.sources.map(s => `<span class="src-tag">${s}</span>`).join('');
+      const bullets = msg.data.bullets.map(b =>
+        `<div class="bullet-row"><span class="bullet-mark">▸</span><span class="bullet-body">${b.text}<span class="bullet-src">[${b.source}]</span></span></div>`
+      ).join('');
+      const paramTags = msg.data.params.map(p => `<span class="pc-tag">${p}</span>`).join('');
+      div.innerHTML = `<div class="bubble assistant">
+        <div class="bubble-meta">
+          <span class="bubble-from">Claude</span>
+          <div class="source-tags">${srcTags}</div>
+        </div>
+        <div class="bubble-text">${bullets}</div>
+        <div class="date-footer">
+          Searched: ${msg.data.date}
+          <div class="param-confirm">${paramTags}</div>
+        </div>
+      </div>`;
+    } else {
+      div.innerHTML = `<div class="bubble ${msg.role}"><div class="bubble-text">${msg.content||''}</div></div>`;
+    }
+    container.appendChild(div);
+  });
+
+  if (loading) {
+    const ld = document.createElement('div');
+    ld.className = 'loading-row';
+    ld.innerHTML = '<span class="loading-label">Searching</span><div class="ldot"></div><div class="ldot"></div><div class="ldot"></div>';
+    container.appendChild(ld);
+  }
+  container.scrollTop = container.scrollHeight;
+}
+
+function pickFollowup(text) {
+  const t = text.toLowerCase();
+  if (t.includes('ai') || t.includes('automat')) return FOLLOWUP.ai;
+  if (t.includes('hir') || t.includes('sector') || t.includes('find') || t.includes('job')) return FOLLOWUP.hiring;
+  return FOLLOWUP.default;
+}
+
+async function sendMessageText(text) {
+  if (!text.trim() || loading) return;
+  messages.push({ role: 'user', content: text });
+  loading = true; renderMessages();
+  document.getElementById('chatInput').value = ''; updateSendBtn();
+  await new Promise(r => setTimeout(r, turnCount === 0 ? 1800 : 1200));
+  if (turnCount === 0) {
+    messages.push({ role: 'assistant', data: DEMO_RESPONSE });
+  } else {
+    messages.push({ role: 'assistant', data: { bullets: pickFollowup(text), date: 'March 6, 2026', sources: ['News','LinkedIn'], params: DEMO_RESPONSE.params } });
+  }
+  turnCount++; loading = false; renderMessages(); updateSendBtn();
+}
+
+function sendMessage() { const v = document.getElementById('chatInput').value.trim(); if (v) sendMessageText(v); }
+function updateSendBtn() {
+  const v = document.getElementById('chatInput').value.trim();
+  document.getElementById('sendBtn').classList.toggle('ready', !!v && !loading);
+}
+function resetAll() {
+  Object.keys(state).forEach(k => state[k] = []);
+  goal = ''; messages = []; loading = false; turnCount = 0;
+  activeSection = 'Input'; currentView = 'build';
+  document.getElementById('buildView').classList.remove('hidden');
+  document.getElementById('chatView').classList.remove('visible');
+  document.getElementById('viewToggle').textContent = 'Chat →';
+  document.getElementById('viewToggle').classList.remove('active');
+  buildNav(); buildForm(); updatePreview(); renderMessages();
+}
+
+buildNav(); buildForm(); updatePreview();
+</script>
+</body>
+</html>
