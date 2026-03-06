@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Instruction Builder</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Georgia, serif; background: #0f0f0f; color: #f0ece4; min-height: 100vh; display: flex; flex-direction: column; }
+::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
+@keyframes pulse { 0%,100%{opacity:.3;transform:scale(.8)} 50%{opacity:1;transform:scale(1.2)} }
+input:focus, textarea:focus { outline: none; }
+input[type=file] { display: none; }
+
+header { background: #111; border-bottom: 1px solid #1e1e1e; padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; position: sticky; top: 0; z-index: 100; }
+.h-sub { font-size: 9px; letter-spacing: 4px; color: #444; text-transform: uppercase; margin-bottom: 3px; }
+.h-main { font-size: 20px; letter-spacing: -0.5px; }
+.h-main em { color: #c9a96e; font-style: italic; }
+.h-right { display: flex; gap: 8px; align-items: center; }
+.param-count { font-size: 11px; color: #444; }
+.param-count span { color: #c9a96e; }
+.btn-sm { padding: 5px 12px; background: transparent; border: 1px solid #252525; border-radius: 2px; color: #555; cursor: pointer; font-size: 11px; font-family: Georgia, serif; transition: all 0.15s; }
+.btn-sm:hover { border-color: #444; color: #888; }
+.btn-sm.active { background: #c9a96e18; border-color: #c9a96e; color: #c9a96e; }
+
+.layout { display: grid; grid-template-columns: 140px 1fr 260px; flex: 1; overflow: hidden; height: calc(100vh - 57px); }
+
+/* Nav */
+.nav { background: #111; border-right: 1px solid #1e1e1e; overflow-y: auto; }
+.nav-item { padding: 11px 14px; cursor: pointer; border-left: 3px solid transparent; display: flex; justify-content: space-between; align-items: center; transition: all 0.15s; }
+.nav-item:hover { background: #161616; }
+.nav-item.active { background: #1a1a1a; }
+.nav-item .nav-label { font-size: 11px; color: #555; }
+.nav-item.active .nav-label { color: #f0ece4; }
+.nav-badge { font-size: 10px; padding: 1px 5px; border-radius: 8px; }
+
+/* Form */
+.form { padding: 22px 24px; overflow-y: auto; }
+.section-header-label { font-size: 9px; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 18px; display: flex; align-items: center; gap: 8px; }
+.section-header-label .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+.group { margin-bottom: 20px; }
+.group-label { font-size: 9px; letter-spacing: 2px; color: #3a3a3a; text-transform: uppercase; margin-bottom: 10px; }
+.chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.chip { padding: 5px 12px; background: #1a1a1a; border: 1px solid #252525; border-radius: 2px; cursor: pointer; font-size: 12px; color: #555; transition: all 0.15s; user-select: none; display: inline-flex; align-items: center; gap: 6px; font-family: Georgia, serif; }
+.chip .box { width: 7px; height: 7px; border: 1px solid #333; border-radius: 1px; background: transparent; display: inline-block; flex-shrink: 0; transition: all 0.15s; }
+
+/* Right panel */
+.right { background: #111; border-left: 1px solid #1e1e1e; display: flex; flex-direction: column; overflow: hidden; }
+.params-preview { flex: 1; padding: 16px; overflow-y: auto; border-bottom: 1px solid #1e1e1e; }
+.preview-title { font-size: 9px; letter-spacing: 3px; color: #444; text-transform: uppercase; margin-bottom: 14px; }
+.preview-empty { font-size: 11px; color: #252525; font-style: italic; }
+.preview-line { font-size: 11px; color: #666; line-height: 1.8; border-bottom: 1px solid #1a1a1a; padding-bottom: 4px; margin-bottom: 4px; }
+.preview-goal { margin-top: 10px; font-size: 11px; color: #888; font-style: italic; line-height: 1.6; }
+.execute-area { padding: 14px; }
+.abs-label { font-size: 9px; letter-spacing: 2px; color: #333; text-transform: uppercase; margin-bottom: 8px; }
+.btn-execute { width: 100%; padding: 11px; background: #1a1a1a; color: #333; border: none; border-radius: 2px; cursor: not-allowed; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; font-family: Georgia, serif; transition: all 0.2s; }
+.btn-execute.ready { background: #c9a96e; color: #0f0f0f; cursor: pointer; }
+
+/* Goal section */
+.goal-desc { font-size: 12px; color: #555; margin-bottom: 12px; line-height: 1.6; }
+.goal-textarea { width: 100%; padding: 12px 14px; background: #161616; border: 1px solid #252525; border-radius: 2px; color: #f0ece4; font-size: 13px; font-family: Georgia, serif; resize: vertical; transition: border-color 0.2s; }
+.goal-textarea:focus { border-color: #c9a96e; }
+.goal-textarea::placeholder { color: #2a2a2a; }
+.file-btn { margin-top: 12px; padding: 8px 14px; background: #161616; border: 1px dashed #2a2a2a; border-radius: 2px; cursor: pointer; font-size: 12px; color: #444; display: inline-block; font-family: Georgia, serif; }
+.file-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+.file-tag { padding: 2px 8px; background: #4a9eff15; border: 1px solid #4a9eff44; font-size: 11px; color: #4a9eff; border-radius: 2px; }
+
+/* Chat view */
+.chat-view { display: none; flex-direction: column; flex: 1; height: calc(100vh - 57px); overflow: hidden; }
+.chat-view.visible { display: flex; }
+.build-view { display: grid; }
+.build-view.hidden { display: none; }
+
+.params-bar { background: #111; border-bottom: 1px solid #1e1e1e; padding: 8px 20px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; flex-shrink: 0; }
+.params-bar-label { font-size: 9px; letter-spacing: 2px; color: #333; text-transform: uppercase; margin-right: 4px; }
+.param-tag { padding: 2px 8px; background: #1a1a1a; border: 1px solid #252525; font-size: 10px; color: #555; border-radius: 2px; }
+
+.messages { flex: 1; overflow-y: auto; padding: 24px 32px; display: flex; flex-direction: column; gap: 16px; }
+.msg { display: flex; }
+.msg.user { justify-content: flex-end; }
+.bubble { max-width: 75%; padding: 12px 16px; border-radius: 2px; }
+.bubble.user { background: #1e1a14; border: 1px solid #3a3020; }
+.bubble.assistant { background: #161616; border: 1px solid #252525; }
+.bubble-label { font-size: 9px; letter-spacing: 2px; color: #c9a96e; text-transform: uppercase; margin-bottom: 6px; }
+.bubble-text { font-size: 13px; color: #ccc; line-height: 1.7; white-space: pre-wrap; }
+
+.chat-input-area { padding: 14px 24px; border-top: 1px solid #1e1e1e; background: #111; display: flex; gap: 10px; flex-shrink: 0; }
+.chat-input { flex: 1; padding: 10px 14px; background: #161616; border: 1px solid #252525; border-radius: 2px; color: #f0ece4; font-size: 13px; font-family: Georgia, serif; transition: border-color 0.2s; }
+.chat-input:focus { border-color: #c9a96e; }
+.chat-input::placeholder { color: #2a2a2a; }
+.btn-send { padding: 10px 20px; background: #1a1a1a; color: #333; border: none; border-radius: 2px; cursor: not-allowed; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; font-family: Georgia, serif; transition: all 0.2s; white-space: nowrap; }
+.btn-send.ready { background: #c9a96e; color: #0f0f0f; cursor: pointer; }
+
+.loading-bubble { display: flex; gap: 5px; padding: 12px 16px; background: #161616; border: 1px solid #252525; border-radius: 2px; width: fit-content; }
+.dot { width: 6px; height: 6px; background: #c9a96e; border-radius: 50%; animation: pulse 1.2s ease-in-out infinite; }
+.dot:nth-child(2){animation-delay:.2s} .dot:nth-child(3){animation-delay:.4s}
+
+.empty-chat { text-align: center; color: #252525; font-size: 13px; margin-top: 80px; font-style: italic; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="h-sub">Instruction Builder</div>
+    <div class="h-main">What do you <em>need?</em></div>
+  </div>
+  <div class="h-right">
+    <div class="param-count" id="paramCount" style="display:none"><span id="paramNum">0</span> set</div>
+    <button class="btn-sm" id="viewToggle" onclick="toggleView()">Chat →</button>
+    <button class="btn-sm" onclick="resetAll()">Reset</button>
+  </div>
+</header>
+
+<!-- BUILD VIEW -->
+<div class="layout build-view" id="buildView">
+  <div class="nav" id="navPanel"></div>
+  <div class="form" id="formPanel"></div>
+  <div class="right">
+    <div class="params-preview">
+      <div class="preview-title">Parameters</div>
+      <div class="preview-empty" id="previewEmpty">Nothing selected yet...</div>
+      <div id="previewContent"></div>
+    </div>
+    <div class="execute-area">
+      <div class="abs-label">Absolute — cannot be overridden</div>
+      <button class="btn-execute" id="execBtn" onclick="execute()">Execute →</button>
+    </div>
+  </div>
+</div>
+
+<!-- CHAT VIEW -->
+<div class="chat-view" id="chatView">
+  <div class="params-bar" id="paramsBar" style="display:none"></div>
+  <div class="messages" id="messages">
+    <div class="empty-chat" id="emptyChat">Select parameters and hit Execute to begin...</div>
+  </div>
+  <div class="chat-input-area">
+    <input class="chat-input" id="chatInput" placeholder="Follow up within the same parameters..." onkeydown="if(event.key==='Enter')sendMessage()" oninput="updateSendBtn()">
+    <button class="btn-send" id="sendBtn" onclick="sendMessage()">Send</button>
+  </div>
+</div>
+
+<script>
+const SCHEMA = {
+  Input: {
+    color: "#4a9eff",
+    groups: {
+      "Provided File": { options: ["PDF","Word (docx)","Excel (xlsx)","CSV","TXT","Image"], multi: true },
+      "Web Search": { options: ["Free Search","Targeted URLs","Scholarly Articles","News","Documentation"], multi: true },
+      "Social Media": { options: ["LinkedIn","Twitter/X","Reddit"], multi: true },
+      "Direct Input": { options: ["Free Text","Conversation History"], multi: true }
+    }
+  },
+  Task: {
+    color: "#7ec87e",
+    groups: {
+      "Action": { options: ["Summarise","Analyse","Compare","Generate","Translate","Extract","Research","Recommend","Rewrite","Code","Classify","Evaluate"], multi: true }
+    }
+  },
+  Output: {
+    color: "#e07e7e",
+    groups: {
+      "Documents": { options: ["PDF","Word (docx)","Excel (xlsx)","PowerPoint (pptx)","Markdown","TXT"], multi: true },
+      "Web & Visual": { options: ["HTML Page","React App","SVG","Mermaid Diagram"], multi: true },
+      "Data": { options: ["CSV","JSON","Table"], multi: true },
+      "Conversational": { options: ["Chat Response","Summary","Bullet Points"], multi: true }
+    }
+  },
+  Constraints: {
+    color: "#c97eb8",
+    groups: {
+      "Tone": { options: ["Formal","Conversational","Technical","Neutral","Persuasive"], multi: false },
+      "Audience": { options: ["Executive","Technical","General","Specialist"], multi: false },
+      "Length": { options: ["Short","Medium","Long"], multi: false },
+      "Language": { options: ["English","French","German","Spanish","Polish","Italian","Other"], multi: false }
+    }
+  },
+  Citation: {
+    color: "#7eb8c9",
+    groups: {
+      "Style": { options: ["Not Required","APA","MLA","Chicago","Inline"], multi: false }
+    }
+  }
+};
+
+const state = {}; // { "Input.Provided File": ["PDF",...], ... }
+const files = [];
+let goal = "";
+let activeSection = "Input";
+let messages = [];
+let loading = false;
+let currentView = "build";
+
+// Init state
+Object.entries(SCHEMA).forEach(([sec, { groups }]) => {
+  Object.keys(groups).forEach(grp => { state[`${sec}.${grp}`] = []; });
+});
+
+function buildNav() {
+  const nav = document.getElementById('navPanel');
+  const sections = [...Object.keys(SCHEMA), "Goal"];
+  nav.innerHTML = sections.map(name => {
+    const color = name === "Goal" ? "#c9a96e" : SCHEMA[name]?.color || "#c9a96e";
+    const count = name === "Goal" ? (goal ? 1 : 0) : Object.entries(state).filter(([k]) => k.startsWith(name+".")).flatMap(([,v]) => v).length;
+    return `<div class="nav-item ${activeSection===name?'active':''}" style="border-left-color:${activeSection===name?color:'transparent'}" onclick="setSection('${name}')">
+      <span class="nav-label">${name}</span>
+      ${count > 0 ? `<span class="nav-badge" style="color:${color};background:${color}22">${count}</span>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function buildForm() {
+  const form = document.getElementById('formPanel');
+  if (activeSection === "Goal") {
+    form.innerHTML = `
+      <div class="section-header-label" style="color:#c9a96e"><span class="dot" style="background:#c9a96e"></span>Goal</div>
+      <div class="goal-desc">Describe your task in plain language. This accompanies your parameter selections as the primary instruction.</div>
+      <textarea class="goal-textarea" rows="5" placeholder="e.g. Summarise the attached PDF into a one-page executive briefing in formal English..." oninput="updateGoal(this.value)">${goal}</textarea>
+      <div class="group-label" style="margin-top:18px;margin-bottom:10px">Attach Files</div>
+      <div class="file-btn" onclick="document.getElementById('fileInput').click()">+ Attach files</div>
+      <input type="file" id="fileInput" multiple onchange="handleFiles(this)">
+      <div class="file-tags" id="fileTags">${files.map(f=>`<span class="file-tag">${f}</span>`).join('')}</div>
+    `;
+  } else {
+    const { color, groups } = SCHEMA[activeSection];
+    form.innerHTML = `
+      <div class="section-header-label" style="color:${color}"><span class="dot" style="background:${color}"></span>${activeSection}</div>
+      ${Object.entries(groups).map(([grp, { options, multi }]) => `
+        <div class="group">
+          <div class="group-label">${grp}${!multi?' <span style="color:#2a2a2a">— single select</span>':''}</div>
+          <div class="chips">
+            ${options.map(opt => {
+              const sel = (state[`${activeSection}.${grp}`]||[]).includes(opt);
+              return `<div class="chip ${sel?'selected':''}" style="${sel?`--sel:1;background:${color}18;border-color:${color};color:${color}`:''}" onclick="toggleChip('${activeSection}','${grp}','${opt}',${multi})">
+                <span class="box" style="${sel?`background:${color};border-color:${color}`:''}"></span>${opt}
+              </div>`;
+            }).join('')}
+          </div>
+        </div>`).join('')}
+    `;
+  }
+}
+
+function setSection(name) {
+  activeSection = name;
+  buildNav();
+  buildForm();
+}
+
+function toggleChip(sec, grp, opt, multi) {
+  const key = `${sec}.${grp}`;
+  if (!state[key]) state[key] = [];
+  if (!multi) {
+    state[key] = state[key][0] === opt ? [] : [opt];
+  } else {
+    const idx = state[key].indexOf(opt);
+    if (idx > -1) state[key].splice(idx, 1);
+    else state[key].push(opt);
+  }
+  buildForm();
+  updatePreview();
+}
+
+function updateGoal(val) {
+  goal = val;
+  updatePreview();
+  buildNav();
+}
+
+function handleFiles(input) {
+  Array.from(input.files).forEach(f => files.push(f.name));
+  document.getElementById('fileTags').innerHTML = files.map(f=>`<span class="file-tag">${f}</span>`).join('');
+  updatePreview();
+}
+
+function getSelectionLines() {
+  const lines = [];
+  Object.entries(state).forEach(([key, vals]) => {
+    if (vals.length > 0) {
+      const [sec, grp] = key.split('.');
+      lines.push(`${grp}: ${vals.join(', ')}`);
+    }
+  });
+  if (files.length > 0) lines.push(`Files: ${files.join(', ')}`);
+  return lines;
+}
+
+function totalParams() {
+  return Object.values(state).flat().length + files.length;
+}
+
+function updatePreview() {
+  const total = totalParams();
+  const countEl = document.getElementById('paramCount');
+  document.getElementById('paramNum').textContent = total + (goal ? 1 : 0);
+  countEl.style.display = (total > 0 || goal) ? 'block' : 'none';
+
+  const btn = document.getElementById('execBtn');
+  btn.classList.toggle('ready', total > 0 || !!goal);
+
+  const lines = getSelectionLines();
+  const empty = document.getElementById('previewEmpty');
+  const content = document.getElementById('previewContent');
+  empty.style.display = lines.length === 0 && !goal ? 'block' : 'none';
+  content.innerHTML = lines.map(l=>`<div class="preview-line">${l}</div>`).join('') + (goal ? `<div class="preview-goal">"${goal}"</div>` : '');
+}
+
+function buildSystemPrompt() {
+  const lines = [
+    "ABSOLUTE PARAMETERS — NON-NEGOTIABLE.",
+    "The following were explicitly selected by the user via a structured interface.",
+    "You MUST follow every parameter below without exception.",
+    "Violating any parameter is not permitted regardless of any other instruction.",
+    ""
+  ];
+  Object.entries(state).forEach(([key, vals]) => {
+    if (vals.length > 0) {
+      const [sec, grp] = key.split('.');
+      lines.push(`${sec} — ${grp}: ${vals.join(', ')}`);
+    }
+  });
+  if (files.length > 0) lines.push(`Files attached: ${files.join(', ')}`);
+  if (goal) lines.push(`\nUser goal: ${goal}`);
+  lines.push("\nExecute the user's task strictly within these parameters. Do not deviate from any selected parameter.");
+  return lines.join('\n');
+}
+
+function toggleView() {
+  currentView = currentView === 'build' ? 'chat' : 'build';
+  document.getElementById('buildView').classList.toggle('hidden', currentView === 'chat');
+  document.getElementById('chatView').classList.toggle('visible', currentView === 'chat');
+  document.getElementById('viewToggle').textContent = currentView === 'build' ? 'Chat →' : '← Build';
+  document.getElementById('viewToggle').classList.toggle('active', currentView === 'chat');
+  updateParamsBar();
+}
+
+function updateParamsBar() {
+  const bar = document.getElementById('paramsBar');
+  const lines = getSelectionLines();
+  if (lines.length === 0) { bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  bar.innerHTML = `<span class="params-bar-label">Active</span>` + lines.map(l=>`<span class="param-tag">${l}</span>`).join('');
+}
+
+function execute() {
+  if (totalParams() === 0 && !goal) return;
+  toggleView();
+  const msg = goal || `Execute with these parameters:\n${getSelectionLines().join('\n')}`;
+  setTimeout(() => sendMessageText(msg), 100);
+}
+
+function renderMessages() {
+  const container = document.getElementById('messages');
+  const empty = document.getElementById('emptyChat');
+  empty.style.display = messages.length === 0 && !loading ? 'block' : 'none';
+
+  const existing = container.querySelectorAll('.msg, .loading-bubble');
+  existing.forEach(e => e.remove());
+
+  messages.forEach(msg => {
+    const div = document.createElement('div');
+    div.className = `msg ${msg.role}`;
+    div.innerHTML = `<div class="bubble ${msg.role}">
+      ${msg.role === 'assistant' ? '<div class="bubble-label">Claude</div>' : ''}
+      <div class="bubble-text">${msg.content}</div>
+    </div>`;
+    container.appendChild(div);
+  });
+
+  if (loading) {
+    const ld = document.createElement('div');
+    ld.className = 'loading-bubble';
+    ld.innerHTML = '<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
+    container.appendChild(ld);
+  }
+
+  container.scrollTop = container.scrollHeight;
+}
+
+async function sendMessageText(text) {
+  if (!text.trim() || loading) return;
+  messages.push({ role: 'user', content: text });
+  loading = true;
+  renderMessages();
+  document.getElementById('chatInput').value = '';
+  updateSendBtn();
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: buildSystemPrompt(),
+        messages: messages
+      })
+    });
+    const data = await res.json();
+    messages.push({ role: 'assistant', content: data.content[0].text });
+  } catch {
+    messages.push({ role: 'assistant', content: 'Something went wrong. Please try again.' });
+  }
+
+  loading = false;
+  renderMessages();
+  updateSendBtn();
+}
+
+function sendMessage() {
+  const val = document.getElementById('chatInput').value.trim();
+  if (val) sendMessageText(val);
+}
+
+function updateSendBtn() {
+  const val = document.getElementById('chatInput').value.trim();
+  document.getElementById('sendBtn').classList.toggle('ready', !!val && !loading);
+}
+
+function resetAll() {
+  Object.keys(state).forEach(k => state[k] = []);
+  files.length = 0;
+  goal = '';
+  messages = [];
+  loading = false;
+  activeSection = 'Input';
+  currentView = 'build';
+  document.getElementById('buildView').classList.remove('hidden');
+  document.getElementById('chatView').classList.remove('visible');
+  document.getElementById('viewToggle').textContent = 'Chat →';
+  document.getElementById('viewToggle').classList.remove('active');
+  buildNav();
+  buildForm();
+  updatePreview();
+  renderMessages();
+}
+
+// Init
+buildNav();
+buildForm();
+updatePreview();
+</script>
+</body>
+</html>
