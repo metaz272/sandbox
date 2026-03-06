@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Instruction Builder — Demo</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Georgia, serif; background: #0f0f0f; color: #f0ece4; min-height: 100vh; display: flex; flex-direction: column; }
+::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
+@keyframes pulse { 0%,100%{opacity:.3;transform:scale(.8)} 50%{opacity:1;transform:scale(1.2)} }
+@keyframes fadein { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+@keyframes typing { from{width:0} to{width:100%} }
+input:focus, textarea:focus { outline: none; }
+input[type=file] { display: none; }
+
+header { background: #111; border-bottom: 1px solid #1e1e1e; padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; position: sticky; top: 0; z-index: 100; }
+.h-sub { font-size: 9px; letter-spacing: 4px; color: #444; text-transform: uppercase; margin-bottom: 3px; }
+.h-main { font-size: 20px; letter-spacing: -0.5px; }
+.h-main em { color: #c9a96e; font-style: italic; }
+.h-right { display: flex; gap: 8px; align-items: center; }
+.param-count { font-size: 11px; color: #444; }
+.param-count span { color: #c9a96e; }
+.btn-sm { padding: 5px 12px; background: transparent; border: 1px solid #252525; border-radius: 2px; color: #555; cursor: pointer; font-size: 11px; font-family: Georgia, serif; transition: all 0.15s; }
+.btn-sm:hover { border-color: #444; color: #888; }
+.btn-sm.active { background: #c9a96e18; border-color: #c9a96e; color: #c9a96e; }
+.demo-badge { padding: 3px 10px; background: #c9a96e18; border: 1px solid #c9a96e44; border-radius: 2px; font-size: 10px; color: #c9a96e; letter-spacing: 1px; }
+
+.layout { display: grid; grid-template-columns: 140px 1fr 260px; flex: 1; overflow: hidden; height: calc(100vh - 57px); }
+.nav { background: #111; border-right: 1px solid #1e1e1e; overflow-y: auto; }
+.nav-item { padding: 11px 14px; cursor: pointer; border-left: 3px solid transparent; display: flex; justify-content: space-between; align-items: center; transition: all 0.15s; }
+.nav-item:hover { background: #161616; }
+.nav-item.active { background: #1a1a1a; }
+.nav-item .nav-label { font-size: 11px; color: #555; }
+.nav-item.active .nav-label { color: #f0ece4; }
+.nav-badge { font-size: 10px; padding: 1px 5px; border-radius: 8px; }
+
+.form { padding: 22px 24px; overflow-y: auto; }
+.section-header-label { font-size: 9px; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 18px; display: flex; align-items: center; gap: 8px; }
+.sdot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; flex-shrink:0; }
+.group { margin-bottom: 20px; }
+.group-label { font-size: 9px; letter-spacing: 2px; color: #3a3a3a; text-transform: uppercase; margin-bottom: 10px; }
+.chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.chip { padding: 5px 12px; background: #1a1a1a; border: 1px solid #252525; border-radius: 2px; cursor: pointer; font-size: 12px; color: #555; transition: all 0.15s; user-select: none; display: inline-flex; align-items: center; gap: 6px; font-family: Georgia, serif; }
+.chip .box { width: 7px; height: 7px; border: 1px solid #333; border-radius: 1px; background: transparent; display: inline-block; flex-shrink: 0; transition: all 0.15s; }
+
+.right { background: #111; border-left: 1px solid #1e1e1e; display: flex; flex-direction: column; overflow: hidden; }
+.params-preview { flex: 1; padding: 16px; overflow-y: auto; border-bottom: 1px solid #1e1e1e; }
+.preview-title { font-size: 9px; letter-spacing: 3px; color: #444; text-transform: uppercase; margin-bottom: 14px; }
+.preview-empty { font-size: 11px; color: #252525; font-style: italic; }
+.preview-line { font-size: 11px; color: #666; line-height: 1.8; border-bottom: 1px solid #1a1a1a; padding-bottom: 4px; margin-bottom: 4px; }
+.preview-goal { margin-top: 10px; font-size: 11px; color: #888; font-style: italic; line-height: 1.6; }
+.execute-area { padding: 14px; }
+.abs-label { font-size: 9px; letter-spacing: 2px; color: #333; text-transform: uppercase; margin-bottom: 8px; }
+.btn-execute { width: 100%; padding: 11px; background: #1a1a1a; color: #333; border: none; border-radius: 2px; cursor: not-allowed; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; font-family: Georgia, serif; transition: all 0.2s; }
+.btn-execute.ready { background: #c9a96e; color: #0f0f0f; cursor: pointer; }
+
+.goal-desc { font-size: 12px; color: #555; margin-bottom: 12px; line-height: 1.6; }
+.goal-textarea { width: 100%; padding: 12px 14px; background: #161616; border: 1px solid #252525; border-radius: 2px; color: #f0ece4; font-size: 13px; font-family: Georgia, serif; resize: vertical; transition: border-color 0.2s; }
+.goal-textarea:focus { border-color: #c9a96e; }
+.goal-textarea::placeholder { color: #2a2a2a; }
+
+.chat-view { display: none; flex-direction: column; flex: 1; height: calc(100vh - 57px); overflow: hidden; }
+.chat-view.visible { display: flex; }
+.build-view.hidden { display: none; }
+
+.params-bar { background: #111; border-bottom: 1px solid #1e1e1e; padding: 8px 20px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; flex-shrink: 0; }
+.params-bar-label { font-size: 9px; letter-spacing: 2px; color: #333; text-transform: uppercase; margin-right: 4px; }
+.param-tag { padding: 2px 8px; background: #1a1a1a; border: 1px solid #252525; font-size: 10px; color: #555; border-radius: 2px; }
+
+.messages { flex: 1; overflow-y: auto; padding: 24px 32px; display: flex; flex-direction: column; gap: 16px; }
+.msg { display: flex; animation: fadein 0.3s ease; }
+.msg.user { justify-content: flex-end; }
+.bubble { max-width: 78%; padding: 12px 16px; border-radius: 2px; }
+.bubble.user { background: #1e1a14; border: 1px solid #3a3020; }
+.bubble.assistant { background: #161616; border: 1px solid #252525; }
+.bubble-label { font-size: 9px; letter-spacing: 2px; color: #c9a96e; text-transform: uppercase; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+.source-tags { display: flex; gap: 4px; }
+.source-tag { padding: 1px 6px; background: #4a9eff15; border: 1px solid #4a9eff33; font-size: 9px; color: #4a9eff; border-radius: 2px; letter-spacing: 1px; }
+.bubble-text { font-size: 13px; color: #ccc; line-height: 1.8; }
+.bullet-item { display: flex; gap: 10px; margin-bottom: 8px; align-items: flex-start; }
+.bullet-dot { color: #c9a96e; flex-shrink: 0; margin-top: 2px; font-size: 14px; }
+.bullet-text { font-size: 13px; color: #ccc; line-height: 1.7; }
+.date-stamp { font-size: 10px; color: #333; margin-top: 12px; padding-top: 10px; border-top: 1px solid #1e1e1e; letter-spacing: 1px; }
+
+.chat-input-area { padding: 14px 24px; border-top: 1px solid #1e1e1e; background: #111; display: flex; gap: 10px; flex-shrink: 0; }
+.chat-input { flex: 1; padding: 10px 14px; background: #161616; border: 1px solid #252525; border-radius: 2px; color: #f0ece4; font-size: 13px; font-family: Georgia, serif; transition: border-color 0.2s; }
+.chat-input:focus { border-color: #c9a96e; }
+.chat-input::placeholder { color: #2a2a2a; }
+.btn-send { padding: 10px 20px; background: #1a1a1a; color: #333; border: none; border-radius: 2px; cursor: not-allowed; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; font-family: Georgia, serif; transition: all 0.2s; white-space: nowrap; }
+.btn-send.ready { background: #c9a96e; color: #0f0f0f; cursor: pointer; }
+.loading-bubble { display: flex; gap: 5px; padding: 12px 16px; background: #161616; border: 1px solid #252525; border-radius: 2px; width: fit-content; animation: fadein 0.3s ease; align-items: center; }
+.loading-text { font-size: 10px; color: #333; letter-spacing: 2px; text-transform: uppercase; margin-right: 8px; }
+.ldot { width: 6px; height: 6px; background: #c9a96e; border-radius: 50%; animation: pulse 1.2s ease-in-out infinite; }
+.ldot:nth-child(2){animation-delay:.2s} .ldot:nth-child(3){animation-delay:.4s}
+.empty-chat { text-align: center; color: #252525; font-size: 13px; margin-top: 80px; font-style: italic; }
+
+.hint-box { background: #161616; border: 1px solid #1e1e1e; border-radius: 2px; padding: 12px 14px; margin-bottom: 16px; }
+.hint-title { font-size: 9px; letter-spacing: 2px; color: #c9a96e; text-transform: uppercase; margin-bottom: 8px; }
+.hint-step { font-size: 11px; color: #444; line-height: 1.8; display: flex; gap: 8px; }
+.hint-step span { color: #c9a96e; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="h-sub">Instruction Builder</div>
+    <div class="h-main">What do you <em>need?</em></div>
+  </div>
+  <div class="h-right">
+    <div class="param-count" id="paramCount" style="display:none"><span id="paramNum">0</span> set</div>
+    <span class="demo-badge">Demo</span>
+    <button class="btn-sm" id="viewToggle" onclick="toggleView()">Chat →</button>
+    <button class="btn-sm" onclick="resetAll()">Reset</button>
+  </div>
+</header>
+
+<div class="layout build-view" id="buildView">
+  <div class="nav" id="navPanel"></div>
+  <div class="form" id="formPanel"></div>
+  <div class="right">
+    <div class="params-preview">
+      <div class="preview-title">Parameters</div>
+      <div class="preview-empty" id="previewEmpty">Nothing selected yet...</div>
+      <div id="previewContent"></div>
+    </div>
+    <div class="execute-area">
+      <div class="abs-label">Absolute — cannot be overridden</div>
+      <button class="btn-execute" id="execBtn" onclick="execute()">Execute →</button>
+    </div>
+  </div>
+</div>
+
+<div class="chat-view" id="chatView">
+  <div class="params-bar" id="paramsBar" style="display:none"></div>
+  <div class="messages" id="messages">
+    <div class="empty-chat" id="emptyChat">Select parameters and hit Execute to begin...</div>
+  </div>
+  <div class="chat-input-area">
+    <input class="chat-input" id="chatInput" placeholder="Follow up within the same parameters..." onkeydown="if(event.key==='Enter')sendMessage()" oninput="updateSendBtn()">
+    <button class="btn-send" id="sendBtn" onclick="sendMessage()">Send</button>
+  </div>
+</div>
+
+<script>
+const SCHEMA = {
+  Input: {
+    color: "#4a9eff",
+    groups: {
+      "Web Search": { options: ["Free Search","Targeted URLs","Scholarly Articles","News","Documentation"], multi: true },
+      "Social Media": { options: ["LinkedIn","Twitter/X","Reddit"], multi: true },
+      "Provided File": { options: ["PDF","Word (docx)","Excel (xlsx)","CSV","TXT","Image"], multi: true },
+      "Direct Input": { options: ["Free Text","Conversation History"], multi: true }
+    }
+  },
+  Task: {
+    color: "#7ec87e",
+    groups: {
+      "Action": { options: ["Summarise","Analyse","Compare","Generate","Translate","Extract","Research","Recommend","Rewrite","Code","Classify","Evaluate"], multi: true }
+    }
+  },
+  Output: {
+    color: "#e07e7e",
+    groups: {
+      "Documents": { options: ["PDF","Word (docx)","Excel (xlsx)","PowerPoint (pptx)","Markdown","TXT"], multi: true },
+      "Conversational": { options: ["Chat Response","Summary","Bullet Points"], multi: true },
+      "Web & Visual": { options: ["HTML Page","React App","SVG","Mermaid Diagram"], multi: true },
+      "Data": { options: ["CSV","JSON","Table"], multi: true }
+    }
+  },
+  Constraints: {
+    color: "#c97eb8",
+    groups: {
+      "Tone": { options: ["Formal","Conversational","Technical","Neutral","Persuasive"], multi: false },
+      "Audience": { options: ["Executive","Technical","General","Specialist"], multi: false },
+      "Length": { options: ["Short","Medium","Long"], multi: false },
+      "Language": { options: ["English","French","German","Spanish","Polish","Italian","Other"], multi: false }
+    }
+  },
+  Citation: {
+    color: "#7eb8c9",
+    groups: {
+      "Style": { options: ["Not Required","APA","MLA","Chicago","Inline"], multi: false }
+    }
+  }
+};
+
+// The real demo response — built from live search data, March 6 2026
+const DEMO_RESPONSE = {
+  bullets: [
+    { text: "Block (Square/Cash App) cut 4,000 jobs this week — nearly half its workforce. CEO Jack Dorsey cited AI tools as the reason a smaller team can now do more.", source: "News" },
+    { text: "Tech layoffs in 2026 are running at 815 per day. As of March 5, over 52,000 workers have been let go across 148 companies — outpacing 2025's already elevated rate.", source: "News" },
+    { text: "Amazon remains the single largest layoff event of the year: 16,000 corporate jobs cut as part of broader restructuring. Total corporate losses approach 30,000.", source: "News" },
+    { text: "AI is the dominant stated reason. 44% of US hiring managers expect AI to be a top driver of cuts in 2026, per Resume.org — while simultaneously creating new roles in ML, AI safety and prompt engineering.", source: "LinkedIn" },
+    { text: "UPS plans to eliminate 30,000 jobs across 2026, largely through attrition. 24 facilities are closing in H1 alone.", source: "News" },
+    { text: "Entry-level workers are hit hardest. Unemployment has risen faster for younger workers, and more than a quarter of jobless Americans are now long-term unemployed (27+ weeks).", source: "News" },
+    { text: "JP Morgan forecasts job growth in H1 2026 will be 'uncomfortably slow', with unemployment peaking near 4.5%. A second-half recovery is possible if tariff policy stabilises.", source: "News" }
+  ],
+  date: "March 6, 2026",
+  sources: ["News", "LinkedIn"]
+};
+
+const FOLLOWUP_RESPONSES = {
+  default: {
+    bullets: [
+      { text: "Sectors still actively hiring: AI/ML engineering, cybersecurity, healthcare, and cloud infrastructure.", source: "News" },
+      { text: "Companies cutting in one division are often hiring in another — eBay laid off 800 while simultaneously acquiring Depop and expanding product teams.", source: "LinkedIn" },
+      { text: "Average job search time for displaced tech workers is currently 2–4 months, longer for senior roles.", source: "News" }
+    ]
+  },
+  ai: {
+    bullets: [
+      { text: "AI directly caused an estimated 55,000 US job losses in 2025 — and the pace is accelerating in 2026.", source: "News" },
+      { text: "Roles most at risk: content creation, customer support, data entry, basic coding. Roles being created: prompt engineering, AI safety, ML operations.", source: "News" },
+      { text: "Dow, UPS and Block all cited AI-driven automation as primary justification for 2026 cuts.", source: "LinkedIn" }
+    ]
+  },
+  hiring: {
+    bullets: [
+      { text: "Healthcare remains the most stable sector — low unemployment propped up by consistent demand growth.", source: "News" },
+      { text: "AI-native candidates have a significant edge. Upskilling in AI tools is the most cited advice from recruiters on LinkedIn this week.", source: "LinkedIn" },
+      { text: "Federal hiring has contracted sharply — 250,000 government jobs cut under current administration policies.", source: "News" }
+    ]
+  }
+};
+
+const state = {};
+const files = [];
+let goal = '';
+let activeSection = 'Input';
+let messages = [];
+let loading = false;
+let currentView = 'build';
+let turnCount = 0;
+
+Object.entries(SCHEMA).forEach(([sec, { groups }]) => {
+  Object.keys(groups).forEach(grp => { state[`${sec}.${grp}`] = []; });
+});
+
+function buildNav() {
+  const nav = document.getElementById('navPanel');
+  const sections = [...Object.keys(SCHEMA), 'Goal'];
+  nav.innerHTML = sections.map(name => {
+    const color = name === 'Goal' ? '#c9a96e' : SCHEMA[name]?.color || '#c9a96e';
+    const count = name === 'Goal' ? (goal ? 1 : 0) : Object.entries(state).filter(([k]) => k.startsWith(name+'.')).flatMap(([,v]) => v).length;
+    return `<div class="nav-item ${activeSection===name?'active':''}" style="border-left-color:${activeSection===name?color:'transparent'}" onclick="setSection('${name}')">
+      <span class="nav-label">${name}</span>
+      ${count > 0 ? `<span class="nav-badge" style="color:${color};background:${color}22">${count}</span>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function buildForm() {
+  const form = document.getElementById('formPanel');
+  if (activeSection === 'Goal') {
+    form.innerHTML = `
+      <div class="hint-box">
+        <div class="hint-title">Try the demo</div>
+        <div class="hint-step"><span>1</span> Select: Input → News + LinkedIn</div>
+        <div class="hint-step"><span>2</span> Select: Task → Summarise</div>
+        <div class="hint-step"><span>3</span> Select: Output → Bullet Points</div>
+        <div class="hint-step"><span>4</span> Select: Constraints → Neutral, General, Short</div>
+        <div class="hint-step"><span>5</span> Type goal below → hit Execute</div>
+      </div>
+      <div class="section-header-label" style="color:#c9a96e"><span class="sdot" style="background:#c9a96e"></span>Goal</div>
+      <div class="goal-desc">Type your instruction. The parameters above are absolute — they cannot be overridden by what you write here.</div>
+      <textarea class="goal-textarea" rows="4" placeholder="e.g. Job news today" oninput="updateGoal(this.value)">${goal}</textarea>
+    `;
+  } else {
+    const { color, groups } = SCHEMA[activeSection];
+    form.innerHTML = `
+      <div class="section-header-label" style="color:${color}"><span class="sdot" style="background:${color}"></span>${activeSection}</div>
+      ${Object.entries(groups).map(([grp, { options, multi }]) => `
+        <div class="group">
+          <div class="group-label">${grp}${!multi?' <span style="color:#2a2a2a">— single select</span>':''}</div>
+          <div class="chips">
+            ${options.map(opt => {
+              const sel = (state[`${activeSection}.${grp}`]||[]).includes(opt);
+              return `<div class="chip" style="${sel?`background:${color}18;border-color:${color};color:${color}`:''}" onclick="toggleChip('${activeSection}','${grp}','${opt.replace(/['"()\/]/g,'')}',${multi})">
+                <span class="box" style="${sel?`background:${color};border-color:${color}`:''}"></span>${opt}
+              </div>`;
+            }).join('')}
+          </div>
+        </div>`).join('')}
+    `;
+  }
+}
+
+function setSection(name) { activeSection = name; buildNav(); buildForm(); }
+
+function toggleChip(sec, grp, opt, multi) {
+  // map display name back to original
+  const origOpt = Object.values(SCHEMA[sec]?.groups[grp]?.options||[]).find(o=>o.replace(/['"()\/]/g,'')=== opt)||opt;
+  const key = `${sec}.${grp}`;
+  if (!state[key]) state[key] = [];
+  if (!multi) {
+    state[key] = state[key][0] === origOpt ? [] : [origOpt];
+  } else {
+    const idx = state[key].indexOf(origOpt);
+    if (idx > -1) state[key].splice(idx, 1); else state[key].push(origOpt);
+  }
+  buildForm(); updatePreview();
+}
+
+function updateGoal(val) { goal = val; updatePreview(); buildNav(); }
+
+function getSelectionLines() {
+  const lines = [];
+  Object.entries(state).forEach(([key, vals]) => {
+    if (vals.length > 0) {
+      const [,grp] = key.split('.');
+      lines.push(`${grp}: ${vals.join(', ')}`);
+    }
+  });
+  return lines;
+}
+
+function totalParams() { return Object.values(state).flat().length; }
+
+function updatePreview() {
+  const total = totalParams();
+  const countEl = document.getElementById('paramCount');
+  document.getElementById('paramNum').textContent = total + (goal ? 1 : 0);
+  countEl.style.display = (total > 0 || goal) ? 'block' : 'none';
+  document.getElementById('execBtn').classList.toggle('ready', total > 0 || !!goal);
+  const lines = getSelectionLines();
+  document.getElementById('previewEmpty').style.display = lines.length === 0 && !goal ? 'block' : 'none';
+  document.getElementById('previewContent').innerHTML = lines.map(l=>`<div class="preview-line">${l}</div>`).join('') + (goal ? `<div class="preview-goal">"${goal}"</div>` : '');
+}
+
+function toggleView() {
+  currentView = currentView === 'build' ? 'chat' : 'build';
+  document.getElementById('buildView').classList.toggle('hidden', currentView === 'chat');
+  document.getElementById('chatView').classList.toggle('visible', currentView === 'chat');
+  document.getElementById('viewToggle').textContent = currentView === 'build' ? 'Chat →' : '← Build';
+  document.getElementById('viewToggle').classList.toggle('active', currentView === 'chat');
+  updateParamsBar();
+}
+
+function updateParamsBar() {
+  const bar = document.getElementById('paramsBar');
+  const lines = getSelectionLines();
+  if (lines.length === 0) { bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  bar.innerHTML = `<span class="params-bar-label">Active</span>` + lines.map(l=>`<span class="param-tag">${l}</span>`).join('');
+}
+
+function execute() {
+  if (totalParams() === 0 && !goal) return;
+  toggleView();
+  const msg = goal || 'Job news today';
+  setTimeout(() => sendMessageText(msg), 300);
+}
+
+function renderBullets(data) {
+  const sourceTagsHtml = data.sources.map(s=>`<span class="source-tag">${s}</span>`).join('');
+  const bulletsHtml = data.bullets.map(b=>`
+    <div class="bullet-item">
+      <span class="bullet-dot">▸</span>
+      <span class="bullet-text">${b.text} <span style="font-size:10px;color:#3a3a3a;letter-spacing:1px">[${b.source}]</span></span>
+    </div>`).join('');
+  return { sourceTagsHtml, bulletsHtml };
+}
+
+function renderMessages() {
+  const container = document.getElementById('messages');
+  document.getElementById('emptyChat').style.display = messages.length === 0 && !loading ? 'block' : 'none';
+  container.querySelectorAll('.msg,.loading-bubble').forEach(e => e.remove());
+
+  messages.forEach(msg => {
+    const div = document.createElement('div');
+    div.className = `msg ${msg.role}`;
+    if (msg.role === 'assistant' && msg.data) {
+      const { sourceTagsHtml, bulletsHtml } = renderBullets(msg.data);
+      div.innerHTML = `<div class="bubble assistant">
+        <div class="bubble-label">
+          <span>Claude</span>
+          <div class="source-tags">${sourceTagsHtml}</div>
+        </div>
+        <div class="bubble-text">${bulletsHtml}</div>
+        <div class="date-stamp">Sources searched: ${msg.data.date} · Parameters honoured: output format (Bullet Points), tone (Neutral), audience (General), length (Short)</div>
+      </div>`;
+    } else {
+      div.innerHTML = `<div class="bubble ${msg.role}">${msg.role==='assistant'?'<div class="bubble-label">Claude</div>':''}<div class="bubble-text">${msg.content||''}</div></div>`;
+    }
+    container.appendChild(div);
+  });
+
+  if (loading) {
+    const ld = document.createElement('div');
+    ld.className = 'loading-bubble';
+    ld.innerHTML = '<span class="loading-text">Searching</span><div class="ldot"></div><div class="ldot"></div><div class="ldot"></div>';
+    container.appendChild(ld);
+  }
+  container.scrollTop = container.scrollHeight;
+}
+
+function pickFollowup(text) {
+  const t = text.toLowerCase();
+  if (t.includes('ai') || t.includes('artificial') || t.includes('automation')) return FOLLOWUP_RESPONSES.ai;
+  if (t.includes('hiring') || t.includes('hire') || t.includes('find') || t.includes('get a job') || t.includes('sector')) return FOLLOWUP_RESPONSES.hiring;
+  return FOLLOWUP_RESPONSES.default;
+}
+
+async function sendMessageText(text) {
+  if (!text.trim() || loading) return;
+  messages.push({ role: 'user', content: text });
+  loading = true;
+  renderMessages();
+  document.getElementById('chatInput').value = '';
+  updateSendBtn();
+
+  // Simulate search delay
+  const delay = turnCount === 0 ? 1800 : 1200;
+  await new Promise(r => setTimeout(r, delay));
+
+  if (turnCount === 0) {
+    messages.push({ role: 'assistant', data: DEMO_RESPONSE });
+  } else {
+    const followup = pickFollowup(text);
+    const fData = {
+      bullets: followup.bullets,
+      date: 'March 6, 2026',
+      sources: ['News', 'LinkedIn']
+    };
+    messages.push({ role: 'assistant', data: fData });
+  }
+
+  turnCount++;
+  loading = false;
+  renderMessages();
+  updateSendBtn();
+}
+
+function sendMessage() {
+  const val = document.getElementById('chatInput').value.trim();
+  if (val) sendMessageText(val);
+}
+
+function updateSendBtn() {
+  const val = document.getElementById('chatInput').value.trim();
+  document.getElementById('sendBtn').classList.toggle('ready', !!val && !loading);
+}
+
+function resetAll() {
+  Object.keys(state).forEach(k => state[k] = []);
+  files.length = 0; goal = ''; messages = []; loading = false; turnCount = 0;
+  activeSection = 'Input'; currentView = 'build';
+  document.getElementById('buildView').classList.remove('hidden');
+  document.getElementById('chatView').classList.remove('visible');
+  document.getElementById('viewToggle').textContent = 'Chat →';
+  document.getElementById('viewToggle').classList.remove('active');
+  buildNav(); buildForm(); updatePreview(); renderMessages();
+}
+
+buildNav(); buildForm(); updatePreview();
+</script>
+</body>
+</html>
